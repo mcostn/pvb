@@ -1,18 +1,14 @@
 #include <iostream>
 
-#include "codegen/backend.hpp"
-#include "block/block.hpp"
+#include "codegen/codegen.hpp"
 #include "util/macro.hpp"
 
 int main()
 {
-    Program program;
-    auto print = std::make_unique<PrintStmt>();
-    print->Newline = true;
-    auto lit = std::make_unique<LiteralExpr>(VAL_INT);
-    lit->Data = 42;
-    print->Data = std::move(lit);
-    program.Statements.push_back(std::move(print));
+    auto program = MakeProgram(
+        ExprStatement(Int(1)),
+        ExprStatement(Call("fun1"))
+    );
 
     CppEmitter emitter(std::cout);
     DISCARD(emitter.Emit(program));

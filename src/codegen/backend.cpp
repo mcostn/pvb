@@ -6,8 +6,8 @@ Error Emitter::Emit(const Program &program)
     return Error::Ok;
 }
 
-void Emitter::Indent()
+void Emitter::Indent(std::ostream &stream)
 {
     for (int i = 0; i < IndentLevel; ++i)
-        Out << "    ";
+        stream << "    ";
 }

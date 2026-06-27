@@ -21,8 +21,6 @@ TEST(CppPrintInteger)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -41,8 +39,6 @@ TEST(CppPrintFloat)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -62,8 +58,6 @@ TEST(CppPrintBool)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -82,8 +76,6 @@ TEST(CppPrintString)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -102,8 +94,6 @@ TEST(CppPrintVariable)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -123,8 +113,6 @@ TEST(CppPrintNoNewline)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -144,8 +132,6 @@ TEST(CppNegate)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -164,8 +150,6 @@ TEST(CppNot)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -189,8 +173,6 @@ TEST(CppAddition)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -214,8 +196,6 @@ TEST(CppSubtraction)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -239,8 +219,6 @@ TEST(CppMultiplication)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -264,8 +242,6 @@ TEST(CppDivision)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -289,8 +265,6 @@ TEST(CppModulo)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -314,8 +288,6 @@ TEST(CppLess)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -339,8 +311,6 @@ TEST(CppGreater)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -364,8 +334,6 @@ TEST(CppLessEqual)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -389,8 +357,6 @@ TEST(CppGreaterEqual)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -414,8 +380,6 @@ TEST(CppEqual)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -439,8 +403,6 @@ TEST(CppNotEqual)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -464,8 +426,6 @@ TEST(CppAnd)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -489,8 +449,6 @@ TEST(CppOr)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -519,8 +477,6 @@ TEST(CppNestedExpression)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -539,8 +495,6 @@ TEST(CppIfBareBody)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -562,8 +516,6 @@ TEST(CppIfNoElse)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -588,8 +540,6 @@ TEST(CppIfElse)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -620,8 +570,6 @@ TEST(CppNestedIf)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -643,9 +591,7 @@ TEST(CppExit)
 
     EXPECT_EQ(
         Generate(program),
-R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
+R"(#include <cstdlib>
 using namespace std;
 
 int main()
@@ -663,8 +609,6 @@ TEST(CppWhileBareBody)
 
     EXPECT_EQ(Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -686,8 +630,6 @@ TEST(CppWhileBlockBody)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -713,8 +655,6 @@ TEST(CppForLoop)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -740,8 +680,6 @@ TEST(CppForInfiniteNoCondNoUpdate)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -761,12 +699,7 @@ TEST(CppDeclVarNoInitializer)
 
     EXPECT_EQ(
         Generate(program),
-R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
-using namespace std;
-
-int main()
+R"(int main()
 {
     int x;
 }
@@ -781,12 +714,7 @@ TEST(CppDeclVarInt)
 
     EXPECT_EQ(
         Generate(program),
-R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
-using namespace std;
-
-int main()
+R"(int main()
 {
     int i = 1;
 }
@@ -801,12 +729,7 @@ TEST(CppDeclVarFloat)
 
     EXPECT_EQ(
         Generate(program),
-R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
-using namespace std;
-
-int main()
+R"(int main()
 {
     float f = 1.5;
 }
@@ -822,12 +745,7 @@ TEST(CppBareAssignment)
 
     EXPECT_EQ(
         Generate(program),
-R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
-using namespace std;
-
-int main()
+R"(int main()
 {
     int x = 0;
     x = 5;
@@ -844,8 +762,6 @@ TEST(CppCallNoArgs)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -858,19 +774,17 @@ int main()
 TEST(CppCallMultipleArgs)
 {
     auto program = MakeProgram(
-        Print(Call("max", Int(1), Int(2), Int(3)))
+        Print(Call("func", Int(1), Int(2), Int(3)))
     );
 
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
 {
-    cout << max(1, 2, 3) << endl;
+    cout << func(1, 2, 3) << endl;
 }
 )");
 }
@@ -889,8 +803,6 @@ TEST(CppNestedCall)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
@@ -911,8 +823,6 @@ TEST(CppMultipleTopLevelStatements)
     EXPECT_EQ(
         Generate(program),
 R"(#include <iostream>
-#include <cmath>
-#include <cstdlib>
 using namespace std;
 
 int main()
