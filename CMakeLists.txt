@@ -1,84 +1,74 @@
 cmake_minimum_required(VERSION 3.20)
-
-project(
-    pvb
-    VERSION 0.1
-    LANGUAGES CXX
-)
-
+project(pvb VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-file(
-    GLOB_RECURSE
-    PROJECT_SOURCES
-    CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/src/*.cpp"
-)
-add_executable(
-    ${PROJECT_NAME}
-    ${PROJECT_SOURCES}
+# Caching
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+endif()
+
+# Core Library
+add_library(
+    pvb_lib
+    "src/block/block.cpp"
+    "src/codegen/backend.cpp"
+    "src/codegen/cpp_backend.cpp"
+    "src/codegen/frontend.cpp"
+    "src/codegen/lua_backend.cpp"
 )
 target_include_directories(
-    ${PROJECT_NAME}
-    PRIVATE
-    "${PROJECT_SOURCE_DIR}/src/"
+    pvb_lib
+    PUBLIC
+    "${CMAKE_SOURCE_DIR}/src"
 )
+set_target_properties(
+    pvb_lib
+    PROPERTIES
+    UNITY_BUILD ON
+)
+
+
+# App
+add_executable(
+    pvb
+    src/main.cpp
+)
+target_link_libraries(
+    pvb
+    PRIVATE
+    pvb_lib
+)
+
 
 # Tests
-file(
-    GLOB_RECURSE
-    TEST_SOURCES
-    CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/tests/*.cpp"
-)
-
-set(TEST_PROJECT_SOURCES ${PROJECT_SOURCES})
-list(FILTER TEST_PROJECT_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
-
 add_executable(
     test_runner
-    ${TEST_PROJECT_SOURCES}
-    ${TEST_SOURCES}
+    tests/cpp_emitter.cpp
+    tests/lua_emitter.cpp
+    tests/test_runner.cpp
 )
-
-target_include_directories(
+target_link_libraries(
     test_runner
     PRIVATE
-    "${PROJECT_SOURCE_DIR}/src/"
+    pvb_lib
 )
 
-add_test(
-    NAME test_runner
-    COMMAND test_runner
-)
 
 # Useful warnings
+add_library(project_warnings INTERFACE)
 if(MSVC)
-    target_compile_options(
-        ${PROJECT_NAME}
-        PRIVATE
-        /W4
-    )
-    target_compile_options(
-        test_runner
-        PRIVATE
-        /W4
-    )
+    target_compile_options(project_warnings INTERFACE /W4)
 else()
-    target_compile_options(
-        ${PROJECT_NAME}
-        PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-    )
-    target_compile_options(
-        test_runner
-        PRIVATE
+    target_compile_options(project_warnings INTERFACE
         -Wall
         -Wextra
         -Wpedantic
     )
 endif()
+target_link_libraries(pvb_lib PRIVATE project_warnings)
+target_link_libraries(pvb PRIVATE project_warnings)
+target_link_libraries(test_runner PRIVATE project_warnings)
