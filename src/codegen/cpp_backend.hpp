@@ -11,6 +11,7 @@ class CppContext
         CppContext() = default;
         std::unordered_set<std::string> Includes {};
         std::unordered_set<std::string> Namespaces {};
+        std::vector<std::string> FunctionDeclarations;
 };
 class CppEmitter : public Emitter
 {
@@ -26,6 +27,7 @@ public:
     Error EmitExit(const ExitStmt &stmt, std::ostream &out);
     Error EmitExprStmt(const ExprStmt& stmt, std::ostream &out);
     Error EmitBlock(const BlockStmt &stmt, std::ostream &out);
+    Error EmitFunction(const FunctionStmt &stmt, std::ostream &out);
     Error EmitIf(const IfStmt &stmt, std::ostream &out);
     Error EmitWhile(const WhileStmt &stmt, std::ostream &out);
     Error EmitFor(const ForStmt &stmt, std::ostream &out);
@@ -42,4 +44,5 @@ public:
 
     CppContext Context;
     std::ostringstream Main;
+    std::ostringstream Functions;
 };

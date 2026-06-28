@@ -107,6 +107,20 @@ std::unique_ptr<ExprStmt> ExprStatement(std::unique_ptr<Expr> expr)
     return stmt;
 }
 
+std::unique_ptr<FunctionStmt> Function(
+         Value retType,
+         std::string name,
+         std::vector<Param> params,
+         std::unique_ptr<BlockStmt> body)
+{
+    auto fn = std::make_unique<FunctionStmt>();
+    fn->ReturnType = retType;
+    fn->Name = std::move(name);
+    fn->Params = std::move(params);
+    fn->Body = std::move(body);
+    return fn;
+}
+
 std::unique_ptr<IfStmt> If(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch)
 {
     auto stmt = std::make_unique<IfStmt>();

@@ -18,13 +18,24 @@ static std::string_view ValueToCppType(Value val)
 Error CppEmitter::EmitProgram(const Program &program)
 {
     TRY(EmitMain(program));
+
     for (auto &inc: Context.Includes)
         Out << "#include " << inc << "\n";
     for (auto &ns : Context.Namespaces)
         Out << "using namespace " << ns << ";\n";
-    if (!Context.Includes.empty() || !Context.Includes.empty())
+    if (!Context.Includes.empty() || !Context.Namespaces.empty())
         Out << "\n";
-    Out << Main.str();
+
+    for (auto &func : Context.FunctionDeclarations)
+        Out << func << ";\n";
+    if (!Context.FunctionDeclarations.empty())
+        Out << "\n";
+
+    Out << Main.str() << "\n";
+
+    std::string funcImpl = Functions.str();
+    if (!funcImpl.empty())
+        Out << "\n" << Functions.str();
 
     return Error::Ok;
 }
@@ -35,12 +46,17 @@ Error CppEmitter::EmitMain(const Program &program)
          << "{\n";
     IndentLevel++;
     for (const auto &stmt : program.Statements) {
+        if (stmt->Kind == AstNodeKind::FunctionStmt) {
+            TRY(EmitStmt(*stmt, Main));
+            continue;
+        }
+
         Indent(Main);
         TRY(EmitStmt(*stmt, Main));
         Main << "\n";
     }
     IndentLevel--;
-    Main << "}\n";
+    Main << "}";
 
     return Error::Ok;
 }
@@ -59,6 +75,9 @@ Error CppEmitter::EmitStmt(const Stmt &stmt, std::ostream &out)
 
         case AstNodeKind::BlockStmt:
             return EmitBlock(static_cast<const BlockStmt&>(stmt), out);
+
+        case AstNodeKind::FunctionStmt:
+            return EmitFunction(static_cast<const FunctionStmt&>(stmt), Functions);
 
         case AstNodeKind::IfStmt:
             return EmitIf(static_cast<const IfStmt&>(stmt), out);
@@ -124,6 +143,32 @@ Error CppEmitter::EmitBlock(const BlockStmt &stmt, std::ostream &out)
     --IndentLevel;
     Indent(out);
     out << "}";
+
+    return Error::Ok;
+}
+
+Error CppEmitter::EmitFunction(const FunctionStmt &stmt, std::ostream &out)
+{
+    std::ostringstream decl;
+
+    decl << ValueToCppType(stmt.ReturnType) << ' '
+        << stmt.Name << "(";
+    for (size_t i = 0; i < stmt.Params.size(); ++i) {
+        const auto &param = stmt.Params[i];
+        decl << ValueToCppType(param.Type)  << ' ' << param.Name;
+        if (i + 1 < stmt.Params.size())
+            decl << ", ";
+    }
+    decl << ")";
+
+    Context.FunctionDeclarations.push_back(decl.str());
+
+    out << decl.str() << "\n";
+    int prevIndentLevel = IndentLevel;
+    IndentLevel = 0;
+    TRY(EmitBlock(*stmt.Body, out));
+    IndentLevel = prevIndentLevel;
+    out << '\n';
 
     return Error::Ok;
 }

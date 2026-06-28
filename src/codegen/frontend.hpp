@@ -36,6 +36,7 @@ enum class AstNodeKind
     ReadStmt,
     ExitStmt,
     ExprStmt,
+    FunctionStmt,
 
     BlockStmt,
     IfStmt,
@@ -159,6 +160,20 @@ struct BlockStmt : Stmt
     BlockStmt() : Stmt(AstNodeKind::BlockStmt) {}
 };
 
+struct Param
+{
+    Value Type;
+    std::string Name;
+};
+struct FunctionStmt : Stmt
+{
+    Value ReturnType;
+    std::string Name;
+    std::vector<Param> Params;
+    std::unique_ptr<BlockStmt> Body;
+    FunctionStmt() : Stmt(AstNodeKind::FunctionStmt) {}
+};
+
 struct IfStmt : Stmt
 {
     std::unique_ptr<Expr> Condition;
@@ -254,6 +269,7 @@ std::unique_ptr<BlockStmt> Block(Ts&&... stmts)
 std::unique_ptr<PrintStmt> Print(std::unique_ptr<Expr> expr, bool newline = true);
 std::unique_ptr<ExitStmt> Exit(std::unique_ptr<Expr> code);
 std::unique_ptr<ExprStmt> ExprStatement(std::unique_ptr<Expr> expr);
+std::unique_ptr<FunctionStmt> Function(Value retType, std::string name, std::vector<Param> params, std::unique_ptr<BlockStmt> body);
 std::unique_ptr<WhileStmt> While(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> body);
 std::unique_ptr<IfStmt> If(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch = nullptr);
 std::unique_ptr<ForStmt> For(std::unique_ptr<Stmt> init, std::unique_ptr<Expr> cond, std::unique_ptr<Expr> update, std::unique_ptr<Stmt> body);
