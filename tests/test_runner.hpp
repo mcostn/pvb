@@ -77,9 +77,13 @@ inline std::vector<Failure> Failures;
                                                     \
             std::stringstream ss;                   \
             ss << "Expected:\n"                     \
+               << "---START---\n"                   \
                << rhs                               \
+               << "----END----\n"                   \
                << "\nActual:\n"                     \
-               << lhs;                              \
+               << "---START---\n"                   \
+               << lhs                               \
+               << "----END----\n";                  \
                                                     \
             Failures.push_back({                    \
                 CurrentTest,                        \
