@@ -12,6 +12,162 @@ static std::string Generate(const Program& program)
 }
 
 // Tests
+TEST(CppIncludeIostream)
+{
+    auto program = MakeProgram(
+        Print(Int(1))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << 1 << endl;
+}
+)");
+}
+
+TEST(CppIncludeCstdlib)
+{
+    auto program = MakeProgram(
+        Exit(Int(0))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <cstdlib>
+using namespace std;
+
+int main()
+{
+    exit(0);
+}
+)");
+}
+
+TEST(CppIncludeCmath)
+{
+    auto program = MakeProgram(
+        Print(Call("sqrt", Int(9)))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <cmath>
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << sqrt(9) << endl;
+}
+)");
+}
+
+TEST(CppMultipleIncludes)
+{
+    auto program = MakeProgram(
+        Print(Int(1)),
+        Exit(Int(0)),
+        Print(Call("sqrt", Int(16)))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <cmath>
+#include <cstdlib>
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << 1 << endl;
+    exit(0);
+    cout << sqrt(16) << endl;
+}
+)");
+}
+
+TEST(CppDuplicateIostreamInclude)
+{
+    auto program = MakeProgram(
+        Print(Int(1)),
+        Print(Int(2)),
+        Print(Int(3))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << 1 << endl;
+    cout << 2 << endl;
+    cout << 3 << endl;
+}
+)");
+}
+
+TEST(CppDuplicateCmathInclude)
+{
+    auto program = MakeProgram(
+        Print(Call("sqrt", Int(4))),
+        Print(Call("sin", Int(0))),
+        Print(Call("cos", Int(0)))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <cmath>
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << sqrt(4) << endl;
+    cout << sin(0) << endl;
+    cout << cos(0) << endl;
+}
+)");
+}
+
+TEST(CppFunctionGeneratesInclude)
+{
+    auto program = MakeProgram(
+        Function(
+            VAL_NONE,
+            "foo",
+            {},
+            Block(
+                Print(Call("sqrt", Int(25)))
+            )
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <cmath>
+#include <iostream>
+using namespace std;
+
+void foo();
+
+int main()
+{
+}
+
+void foo()
+{
+    cout << sqrt(25) << endl;
+}
+)");
+}
+
 TEST(CppPrintInteger)
 {
     auto program = MakeProgram(
@@ -736,6 +892,21 @@ R"(int main()
 )");
 }
 
+TEST(CppDeclVarBool)
+{
+    auto program = MakeProgram(
+        DeclVar(VAL_BOOL, "flag", Bool(true))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(int main()
+{
+    bool flag = true;
+}
+)");
+}
+
 TEST(CppBareAssignment)
 {
     auto program = MakeProgram(
@@ -749,6 +920,28 @@ R"(int main()
 {
     int x = 0;
     x = 5;
+}
+)");
+}
+
+TEST(CppAssignmentExpression)
+{
+    auto program = MakeProgram(
+        DeclVar(VAL_INT, "x", Int(0)),
+        Print(
+            Assign("x", Int(5))
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    int x = 0;
+    cout << x = 5 << endl;
 }
 )");
 }
@@ -812,6 +1005,54 @@ int main()
 )");
 }
 
+TEST(CppCallInBinaryExpression)
+{
+    auto program = MakeProgram(
+        Print(
+            Add(
+                Call("foo"),
+                Int(5)
+            )
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << (foo() + 5) << endl;
+}
+)");
+}
+
+TEST(CppCallComplexArguments)
+{
+    auto program = MakeProgram(
+        Print(
+            Call(
+                "foo",
+                Add(Int(1), Int(2)),
+                Mul(Int(3), Int(4)),
+                Not(Bool(false))
+            )
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cout << foo((1 + 2), (3 * 4), !(false)) << endl;
+}
+)");
+}
+
 TEST(CppMultipleTopLevelStatements)
 {
     auto program = MakeProgram(
@@ -830,6 +1071,145 @@ int main()
     int x = 1;
     int y = 2;
     cout << (x + y) << endl;
+}
+)");
+}
+
+TEST(CppFuncNoArgs)
+{
+    auto program = MakeProgram(
+        Function(
+            VAL_NONE,
+            "myFun",
+            { },
+            Block (
+                Print(Int(1))
+            )
+        ),
+        ExprStatement(
+            Call("myFun")
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+void myFun();
+
+int main()
+{
+    myFun();
+}
+
+void myFun()
+{
+    cout << 1 << endl;
+}
+)");
+}
+
+TEST(CppFuncWithParameters)
+{
+    auto program = MakeProgram(
+        Function(
+            VAL_NONE,
+            "printSum",
+            { Param(VAL_INT, "a"), Param(VAL_INT, "b") },
+            Block(
+                Print(Add(Var("a", VAL_INT), Var("b", VAL_INT)))
+            )
+        ),
+        ExprStatement(
+            Call("printSum", Int(2), Int(3))
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+void printSum(int a, int b);
+
+int main()
+{
+    printSum(2, 3);
+}
+
+void printSum(int a, int b)
+{
+    cout << (a + b) << endl;
+}
+)");
+}
+
+TEST(CppMultipleFunctions)
+{
+    auto program = MakeProgram(
+        Function(
+            VAL_NONE,
+            "foo",
+            {},
+            Block(Print(Int(1)))
+        ),
+        Function(
+            VAL_NONE,
+            "bar",
+            {},
+            Block(Print(Int(2)))
+        ),
+        ExprStatement(Call("foo")),
+        ExprStatement(Call("bar"))
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(#include <iostream>
+using namespace std;
+
+void foo();
+void bar();
+
+int main()
+{
+    foo();
+    bar();
+}
+
+void foo()
+{
+    cout << 1 << endl;
+}
+void bar()
+{
+    cout << 2 << endl;
+}
+)");
+}
+
+TEST(CppEmptyFunction)
+{
+    auto program = MakeProgram(
+        Function(
+            VAL_NONE,
+            "foo",
+            {},
+            Block()
+        )
+    );
+
+    EXPECT_EQ(
+        Generate(program),
+R"(void foo();
+
+int main()
+{
+}
+
+void foo()
+{
 }
 )");
 }
