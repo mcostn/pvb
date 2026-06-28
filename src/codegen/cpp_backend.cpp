@@ -19,8 +19,14 @@ Error CppEmitter::EmitProgram(const Program &program)
 {
     TRY(EmitMain(program));
 
-    for (auto &inc: Context.Includes)
+    std::vector<std::string> sortedIncludes(
+        Context.Includes.begin(),
+        Context.Includes.end()
+    );
+    std::sort(sortedIncludes.begin(), sortedIncludes.end());
+    for (auto &inc: sortedIncludes)
         Out << "#include " << inc << "\n";
+
     for (auto &ns : Context.Namespaces)
         Out << "using namespace " << ns << ";\n";
     if (!Context.Includes.empty() || !Context.Namespaces.empty())
@@ -339,7 +345,7 @@ Error CppEmitter::EmitCall(const CallExpr &expr, std::ostream &out)
         || expr.Function == "cos"
         || expr.Function == "tan"
         || expr.Function == "atan")
-        Context.Includes.insert("cmath");
+        Context.Includes.insert("<cmath>");
 
     out << expr.Function;
     out << "(";
