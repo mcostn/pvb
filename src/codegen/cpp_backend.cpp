@@ -17,7 +17,23 @@ static std::string_view ValueToCppType(Value val)
 
 Error CppEmitter::EmitProgram(const Program &program)
 {
-    TRY(EmitMain(program));
+    PushOut(&Main);
+    Out() << "int main()\n"
+        << "{\n";
+    IndentLevel++;
+    for (const auto &stmt : program.Statements) {
+        if (stmt->Kind == AstNodeKind::FunctionStmt) {
+            TRY(EmitStmt(*stmt));
+            continue;
+        }
+
+        Indent();
+        TRY(EmitStmt(*stmt));
+        Out() << "\n";
+    }
+    IndentLevel--;
+    Out() << "}";
+    PopOut();
 
     std::vector<std::string> sortedIncludes(
         Context.Includes.begin(),
@@ -25,136 +41,80 @@ Error CppEmitter::EmitProgram(const Program &program)
     );
     std::sort(sortedIncludes.begin(), sortedIncludes.end());
     for (auto &inc: sortedIncludes)
-        Out << "#include " << inc << "\n";
+        Out() << "#include " << inc << "\n";
 
     for (auto &ns : Context.Namespaces)
-        Out << "using namespace " << ns << ";\n";
+        Out() << "using namespace " << ns << ";\n";
     if (!Context.Includes.empty() || !Context.Namespaces.empty())
-        Out << "\n";
+        Out() << "\n";
 
     for (auto &func : Context.FunctionDeclarations)
-        Out << func << ";\n";
+        Out() << func << ";\n";
     if (!Context.FunctionDeclarations.empty())
-        Out << "\n";
+        Out() << "\n";
 
-    Out << Main.str() << "\n";
-
+    Out() << Main.str() << "\n";
     std::string funcImpl = Functions.str();
     if (!funcImpl.empty())
-        Out << "\n" << Functions.str();
+        Out() << "\n" << funcImpl;
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitMain(const Program &program)
-{
-    Main << "int main()\n"
-         << "{\n";
-    IndentLevel++;
-    for (const auto &stmt : program.Statements) {
-        if (stmt->Kind == AstNodeKind::FunctionStmt) {
-            TRY(EmitStmt(*stmt, Main));
-            continue;
-        }
-
-        Indent(Main);
-        TRY(EmitStmt(*stmt, Main));
-        Main << "\n";
-    }
-    IndentLevel--;
-    Main << "}";
-
-    return Error::Ok;
-}
-
-Error CppEmitter::EmitStmt(const Stmt &stmt, std::ostream &out)
-{
-    switch (stmt.Kind) {
-        case AstNodeKind::PrintStmt:
-            return EmitPrint(static_cast<const PrintStmt&>(stmt), out);
-
-        case AstNodeKind::ExitStmt:
-            return EmitExit(static_cast<const ExitStmt&>(stmt), out);
-
-        case AstNodeKind::ExprStmt:
-            return EmitExprStmt(static_cast<const ExprStmt&>(stmt), out);
-
-        case AstNodeKind::BlockStmt:
-            return EmitBlock(static_cast<const BlockStmt&>(stmt), out);
-
-        case AstNodeKind::FunctionStmt:
-            return EmitFunction(static_cast<const FunctionStmt&>(stmt), Functions);
-
-        case AstNodeKind::IfStmt:
-            return EmitIf(static_cast<const IfStmt&>(stmt), out);
-
-        case AstNodeKind::WhileStmt:
-            return EmitWhile(static_cast<const WhileStmt&>(stmt), out);
-
-        case AstNodeKind::ForStmt:
-            return EmitFor(static_cast<const ForStmt&>(stmt), out);
-
-        case AstNodeKind::DeclVarStmt:
-            return EmitDeclVar(static_cast<const DeclVarStmt&>(stmt), out);
-
-        default:
-            GlobalLogger.Error("Unexepected statement kind");
-            return Error::Failed;
-    }
-}
-
-Error CppEmitter::EmitPrint(const PrintStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitPrint(const PrintStmt &stmt)
 {
     Context.Includes.insert("<iostream>");
     Context.Namespaces.insert("std");
 
-    out << "cout << ";
-    TRY(EmitExpr(*stmt.Data, out));
+    Out() << "cout << ";
+    TRY(EmitExpr(*stmt.Data));
     if (stmt.Newline)
-        out << " << endl";
-    out << ";";
+        Out() << " << endl";
+    Out() << ";";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitExit(const ExitStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitExit(const ExitStmt &stmt)
 {
     Context.Includes.insert("<cstdlib>");
     Context.Namespaces.insert("std");
 
-    out << "exit(";
-    TRY(EmitExpr(*stmt.Code, out));
-    out << ");";
+    Out() << "exit(";
+    TRY(EmitExpr(*stmt.Code));
+    Out() << ");";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitExprStmt(const ExprStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitExprStmt(const ExprStmt &stmt)
 {
-    TRY(EmitExpr(*stmt.Expression, out));
-    out << ";";
+    TRY(EmitExpr(*stmt.Expression));
+    Out() << ";";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitBlock(const BlockStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitBlock(const BlockStmt &stmt)
 {
-    out << "{\n";
+    Out() << "{\n";
     ++IndentLevel;
     for (const auto& s : stmt.Statements) {
-        Indent(out);
-        TRY(EmitStmt(*s, out));
-        out << "\n";
+        Indent();
+        TRY(EmitStmt(*s));
+        Out() << "\n";
     }
     --IndentLevel;
-    Indent(out);
-    out << "}";
+    Indent();
+    Out() << "}";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitFunction(const FunctionStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitFunction(const FunctionStmt &stmt)
 {
+    PushOut(&Functions);
+
     std::ostringstream decl;
 
     decl << ValueToCppType(stmt.ReturnType) << ' '
@@ -169,155 +129,129 @@ Error CppEmitter::EmitFunction(const FunctionStmt &stmt, std::ostream &out)
 
     Context.FunctionDeclarations.push_back(decl.str());
 
-    out << decl.str() << "\n";
+    Out() << decl.str() << "\n";
     int prevIndentLevel = IndentLevel;
     IndentLevel = 0;
-    TRY(EmitBlock(*stmt.Body, out));
+    TRY(EmitBlock(*stmt.Body));
     IndentLevel = prevIndentLevel;
-    out << '\n';
+    Out() << '\n';
 
+    PopOut();
     return Error::Ok;
 }
 
-Error CppEmitter::EmitIf(const IfStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitIf(const IfStmt &stmt)
 {
-    out << "if (";
-    TRY(EmitExpr(*stmt.Condition, out));
-    out << ") ";
+    Out() << "if (";
+    TRY(EmitExpr(*stmt.Condition));
+    Out() << ") ";
 
-    TRY(EmitStmt(*stmt.ThenBranch, out));
+    TRY(EmitStmt(*stmt.ThenBranch));
     if (stmt.ElseBranch) {
-        out << " else ";
-        TRY(EmitStmt(*stmt.ElseBranch, out));
+        Out() << " else ";
+        TRY(EmitStmt(*stmt.ElseBranch));
     }
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitWhile(const WhileStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitWhile(const WhileStmt &stmt)
 {
-    out << "while (";
-    TRY(EmitExpr(*stmt.Condition, out));
-    out << ") ";
-    TRY(EmitStmt(*stmt.Body, out));
+    Out() << "while (";
+    TRY(EmitExpr(*stmt.Condition));
+    Out() << ") ";
+    TRY(EmitStmt(*stmt.Body));
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitFor(const ForStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitFor(const ForStmt &stmt)
 {
-    out << "for (";
+    Out() << "for (";
     if (stmt.Init) {
        if (stmt.Init->Kind == AstNodeKind::ExprStmt) {
            auto &exprStmt = static_cast<const ExprStmt&>(*stmt.Init);
-           TRY(EmitExpr(*exprStmt.Expression, out));
+           TRY(EmitExpr(*exprStmt.Expression));
        } else if (stmt.Init->Kind == AstNodeKind::DeclVarStmt) {
            auto &declStmt = static_cast<const DeclVarStmt&>(*stmt.Init);
-           TRY(EmitDeclVar(declStmt, out));
+           TRY(EmitDeclVar(declStmt));
        }
-       out << " ";
+       Out() << " ";
     } else {
-        out << "; ";
+        Out() << "; ";
     }
 
     if (stmt.Condition)
-        TRY(EmitExpr(*stmt.Condition, out));
-    out << "; ";
+        TRY(EmitExpr(*stmt.Condition));
+    Out() << "; ";
 
     if (stmt.Update)
-        TRY(EmitExpr(*stmt.Update, out));
-    out << ") ";
+        TRY(EmitExpr(*stmt.Update));
+    Out() << ") ";
 
-    TRY(EmitStmt(*stmt.Body, out));
+    TRY(EmitStmt(*stmt.Body));
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitDeclVar(const DeclVarStmt &stmt, std::ostream &out)
+Error CppEmitter::EmitDeclVar(const DeclVarStmt &stmt)
 {
-    out << ValueToCppType(stmt.Type) << ' ';
-    out << stmt.Name;
+    Out() << ValueToCppType(stmt.Type) << ' ';
+    Out() << stmt.Name;
     if (stmt.Initializer) {
-        out << " = ";
-        TRY(EmitExpr(*stmt.Initializer, out));
+        Out() << " = ";
+        TRY(EmitExpr(*stmt.Initializer));
     }
-    out << ";";
+    Out() << ";";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitExpr(const Expr &expr, std::ostream &out)
+Error CppEmitter::EmitLiteral(const LiteralExpr &expr)
 {
-    switch (expr.Kind) {
-        case AstNodeKind::LiteralExpr:
-            return EmitLiteral(static_cast<const LiteralExpr&>(expr), out);
-
-        case AstNodeKind::VariableExpr:
-            return EmitVariable(static_cast<const VariableExpr&>(expr), out);
-
-        case AstNodeKind::AssignExpr:
-            return EmitAssign(static_cast<const AssignExpr&>(expr), out);
-
-        case AstNodeKind::UnaryExpr:
-            return EmitUnary(static_cast<const UnaryExpr&>(expr), out);
-
-        case AstNodeKind::BinaryExpr:
-            return EmitBinary(static_cast<const BinaryExpr&>(expr), out);
-
-        case AstNodeKind::CallExpr:
-            return EmitCall(static_cast<const CallExpr&>(expr), out);
-
-        default:
-            GlobalLogger.Error("Unexepected expression kind");
-            return Error::Failed;
-    }
-}
-
-Error CppEmitter::EmitLiteral(const LiteralExpr &expr, std::ostream &out)
-{
-    std::visit([this, &out](auto&& value) {
+    std::visit([this](auto&& value) {
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, bool>) {
-            out << (value ? "true" : "false");
+            Out() << (value ? "true" : "false");
         } else if constexpr (std::is_same_v<T, std::string>) {
-            out << '"' << value << '"';
+            Out() << '"' << value << '"';
         } else {
-            out << value;
+            Out() << value;
         }
     }, expr.Data);
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitVariable(const VariableExpr &expr, std::ostream &out)
+Error CppEmitter::EmitVariable(const VariableExpr &expr)
 {
-    out << expr.Name;
+    Out() << expr.Name;
     return Error::Ok;
 }
 
-Error CppEmitter::EmitAssign(const AssignExpr &expr, std::ostream &out)
+Error CppEmitter::EmitAssign(const AssignExpr &expr)
 {
-    out << expr.Name;
-    out << " = ";
-    TRY(EmitExpr(*expr.ValueExpr, out));
+    Out() << expr.Name;
+    Out() << " = ";
+    TRY(EmitExpr(*expr.ValueExpr));
     return Error::Ok;
 }
 
-Error CppEmitter::EmitUnary(const UnaryExpr &expr, std::ostream &out)
+Error CppEmitter::EmitUnary(const UnaryExpr &expr)
 {
-    #define EMIT_UNARY_SYMBOL(Name, Op, Type, Sym) case UnaryOp::Op: out << Sym; break;
+    #define EMIT_UNARY_SYMBOL(Name, Op, Type, Sym) case UnaryOp::Op: Out() << Sym; break;
     switch (expr.Op) {
         UNARY_OP_LIST(EMIT_UNARY_SYMBOL)
     }
     #undef EMIT_UNARY_SYMBOL
 
-    out << "(";
-    TRY(EmitExpr(*expr.Data, out));
-    out << ")";
+    Out() << "(";
+    TRY(EmitExpr(*expr.Data));
+    Out() << ")";
     return Error::Ok;
 }
 
-Error CppEmitter::EmitBinary(const BinaryExpr &expr, std::ostream &out)
+Error CppEmitter::EmitBinary(const BinaryExpr &expr)
 {
     std::string_view opStr;
     #define EMIT_BINARY_SYMBOL(Name, Op, Type, Sym) case BinaryOp::Op: opStr = Sym; break;
@@ -326,16 +260,16 @@ Error CppEmitter::EmitBinary(const BinaryExpr &expr, std::ostream &out)
     }
     #undef EMIT_BINARY_SYMBOL
 
-    out << "(";
-    TRY(EmitExpr(*expr.Left, out));
-    out << " " << opStr << " ";
-    TRY(EmitExpr(*expr.Right, out));
-    out << ")";
+    Out() << "(";
+    TRY(EmitExpr(*expr.Left));
+    Out() << " " << opStr << " ";
+    TRY(EmitExpr(*expr.Right));
+    Out() << ")";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitCall(const CallExpr &expr, std::ostream &out)
+Error CppEmitter::EmitCall(const CallExpr &expr)
 {
     if (expr.Function == "max"
         || expr.Function == "min"
@@ -347,13 +281,13 @@ Error CppEmitter::EmitCall(const CallExpr &expr, std::ostream &out)
         || expr.Function == "atan")
         Context.Includes.insert("<cmath>");
 
-    out << expr.Function;
-    out << "(";
+    Out() << expr.Function;
+    Out() << "(";
     for (size_t i = 0; i < expr.Args.size(); ++i) {
-        TRY(EmitExpr(*expr.Args[i], out));
+        TRY(EmitExpr(*expr.Args[i]));
         if (i != expr.Args.size() - 1)
-            out << ", ";
+            Out() << ", ";
     }
-    out << ")";
+    Out() << ")";
     return Error::Ok;
 }

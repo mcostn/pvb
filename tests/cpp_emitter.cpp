@@ -6,7 +6,7 @@
 static std::string Generate(const Program& program)
 {
     std::stringstream ss;
-    CppEmitter emitter(ss);
+    CppEmitter emitter(&ss);
     EXPECT(emitter.Emit(program) == Error::Ok);
     return ss.str();
 }

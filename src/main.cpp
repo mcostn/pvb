@@ -17,6 +17,6 @@ int main()
         ExprStatement(Call("fun1"))
     );
 
-    CppEmitter emitter(std::cout);
+    CppEmitter emitter(&std::cout);
     DISCARD(emitter.Emit(program));
 }
