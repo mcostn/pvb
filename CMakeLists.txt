@@ -18,7 +18,6 @@ add_library(
     "src/codegen/backend.cpp"
     "src/codegen/cpp_backend.cpp"
     "src/codegen/frontend.cpp"
-    "src/codegen/lua_backend.cpp"
 )
 target_include_directories(
     pvb_lib
@@ -48,7 +47,6 @@ target_link_libraries(
 add_executable(
     test_runner
     tests/cpp_emitter.cpp
-    tests/lua_emitter.cpp
     tests/test_runner.cpp
 )
 target_link_libraries(
