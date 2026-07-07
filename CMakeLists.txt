@@ -17,6 +17,7 @@ add_library(
     "src/block/block.cpp"
     "src/codegen/backend.cpp"
     "src/codegen/cpp_backend.cpp"
+    "src/codegen/py_backend.cpp"
     "src/codegen/frontend.cpp"
 )
 target_include_directories(
@@ -46,8 +47,9 @@ target_link_libraries(
 # Tests
 add_executable(
     test_runner
-    tests/cpp_emitter.cpp
-    tests/test_runner.cpp
+    "tests/cpp_emitter.cpp"
+    "tests/py_emitter.cpp"
+    "tests/test_runner.cpp"
 )
 target_link_libraries(
     test_runner
