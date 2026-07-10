@@ -18,5 +18,6 @@ enum class [[nodiscard]] Error
 
     // Block Registry
     BlockInvalidFmt,
+    BlockInvalidDefinition,
     BlockAlreadyExists,
 };

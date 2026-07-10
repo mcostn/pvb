@@ -1,4 +1,5 @@
 #include <iostream>
+#include "util/logger.hpp"
 #include "test_runner.hpp"
 
 constexpr const char* RED    = "\033[31m";
@@ -7,6 +8,8 @@ constexpr const char* RESET  = "\033[0m";
 
 inline int RunTests()
 {
+    GlobalLogger.MinLevel = LogLevel::Info;
+
     for (auto& test : Tests) {
         CurrentTest = test.Name;
 
