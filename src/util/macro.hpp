@@ -12,3 +12,5 @@
         }                                                        \
     } while (0)
 
+#define CONCAT(a, b) CONCAT_IMPL(a, b)
+#define CONCAT_IMPL(a, b) a##b

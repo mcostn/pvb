@@ -3,6 +3,8 @@
 #include <iostream>
 #include <vector>
 
+#include "util/macro.hpp"
+
 using TestFn = void(*)();
 
 struct Test
@@ -33,19 +35,19 @@ inline std::vector<Test> Tests;
 inline std::vector<Failure> Failures;
 
 
-#define TEST(name)                              \
-    void name();                                \
-                                                \
-    struct name##_Reg                           \
-    {                                           \
-        name##_Reg()                            \
-        {                                       \
-            Tests.push_back({ #name, name });   \
-        }                                       \
-    };                                          \
-                                                \
-    inline name##_Reg name##_Instance;          \
-                                                \
+#define TEST(name) TEST_IMPL(name)
+
+#define TEST_IMPL(name) \
+    void name(); \
+    struct CONCAT(name, _Reg) \
+    { \
+        CONCAT(name, _Reg()) \
+        { \
+            Tests.push_back({ #name, name }); \
+        } \
+    }; \
+    inline CONCAT(name, _Reg) \
+           CONCAT(name, _Instance); \
     void name()
 
 
