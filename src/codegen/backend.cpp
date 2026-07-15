@@ -1,70 +1,107 @@
 #include "codegen/backend.hpp"
 
+Error Emitter::Emit(const AstNode &node)
+{
+    switch (node.Kind) {
+        case AstNodeKind::Program:
+            return Visit(static_cast<const Program&>(node));
+
+        case AstNodeKind::LiteralExpr:
+            return Visit(static_cast<const LiteralExpr&>(node));
+
+        case AstNodeKind::VariableExpr:
+            return Visit(static_cast<const VariableExpr&>(node));
+
+        case AstNodeKind::AssignExpr:
+            return Visit(static_cast<const AssignExpr&>(node));
+
+        case AstNodeKind::UnaryExpr:
+            return Visit(static_cast<const UnaryExpr&>(node));
+
+        case AstNodeKind::BinaryExpr:
+            return Visit(static_cast<const BinaryExpr&>(node));
+
+        case AstNodeKind::CallExpr:
+            return Visit(static_cast<const CallExpr&>(node));
+
+        case AstNodeKind::PrintStmt:
+            return Visit(static_cast<const PrintStmt&>(node));
+
+        case AstNodeKind::ReadStmt:
+            return Visit(static_cast<const ReadStmt&>(node));
+
+        case AstNodeKind::ExitStmt:
+            return Visit(static_cast<const ExitStmt&>(node));
+
+        case AstNodeKind::ExprStmt:
+            return Visit(static_cast<const ExprStmt&>(node));
+
+        case AstNodeKind::BlockStmt:
+            return Visit(static_cast<const BlockStmt&>(node));
+
+        case AstNodeKind::FunctionStmt:
+            return Visit(static_cast<const FunctionStmt&>(node));
+
+        case AstNodeKind::IfStmt:
+            return Visit(static_cast<const IfStmt&>(node));
+
+        case AstNodeKind::WhileStmt:
+            return Visit(static_cast<const WhileStmt&>(node));
+
+        case AstNodeKind::ForStmt:
+            return Visit(static_cast<const ForStmt&>(node));
+
+        case AstNodeKind::DeclVarStmt:
+            return Visit(static_cast<const DeclVarStmt&>(node));
+
+    }
+
+    return Error::Unreachable;
+}
+
+Error Emitter::EmitStatementList(const BlockStmt& block)
+{
+    for (size_t i = 0; i < block.Statements.size(); ++i) {
+        Indent();
+        TRY(Emit(*block.Statements[i]));
+        if (i + 1 < block.Statements.size())
+            Out() << '\n';
+    }
+
+    return Error::Ok;
+}
+
 void Emitter::Indent()
 {
     for (int i = 0; i < IndentLevel; ++i)
         Out() << "    ";
 }
 
-Error Emitter::EmitStmt(const Stmt &stmt)
+Error Emitter::EmitExpressionList(const std::vector<std::unique_ptr<Expr>>& exprs)
 {
-    switch (stmt.Kind) {
-        case AstNodeKind::PrintStmt:
-            return EmitPrint(static_cast<const PrintStmt&>(stmt));
-
-        case AstNodeKind::ExitStmt:
-            return EmitExit(static_cast<const ExitStmt&>(stmt));
-
-        case AstNodeKind::ExprStmt:
-            return EmitExprStmt(static_cast<const ExprStmt&>(stmt));
-
-        case AstNodeKind::BlockStmt:
-            return EmitBlock(static_cast<const BlockStmt&>(stmt));
-
-        case AstNodeKind::FunctionStmt:
-            return EmitFunction(static_cast<const FunctionStmt&>(stmt));
-
-        case AstNodeKind::IfStmt:
-            return EmitIf(static_cast<const IfStmt&>(stmt));
-
-        case AstNodeKind::WhileStmt:
-            return EmitWhile(static_cast<const WhileStmt&>(stmt));
-
-        case AstNodeKind::ForStmt:
-            return EmitFor(static_cast<const ForStmt&>(stmt));
-
-        case AstNodeKind::DeclVarStmt:
-            return EmitDeclVar(static_cast<const DeclVarStmt&>(stmt));
-
-        default:
-            GlobalLogger.Error("Unexepected statement kind");
-            return Error::Failed;
+    for (size_t i = 0; i < exprs.size(); ++i) {
+        TRY(Emit(exprs[i]));
+        if (i + 1 < exprs.size())
+            Out() << ", ";
     }
+
+    return Error::Ok;
 }
 
-Error Emitter::EmitExpr(const Expr &expr)
+Error Emitter::EmitBinaryOperands(const BinaryExpr& expr)
 {
-    switch (expr.Kind) {
-        case AstNodeKind::LiteralExpr:
-            return EmitLiteral(static_cast<const LiteralExpr&>(expr));
+    TRY(Emit(expr.Left));
+    Out() << " " << BinaryOperator(expr.Op) << " ";
+    TRY(Emit(expr.Right));
 
-        case AstNodeKind::VariableExpr:
-            return EmitVariable(static_cast<const VariableExpr&>(expr));
+    return Error::Ok;
+}
 
-        case AstNodeKind::AssignExpr:
-            return EmitAssign(static_cast<const AssignExpr&>(expr));
-
-        case AstNodeKind::UnaryExpr:
-            return EmitUnary(static_cast<const UnaryExpr&>(expr));
-
-        case AstNodeKind::BinaryExpr:
-            return EmitBinary(static_cast<const BinaryExpr&>(expr));
-
-        case AstNodeKind::CallExpr:
-            return EmitCall(static_cast<const CallExpr&>(expr));
-
-        default:
-            GlobalLogger.Error("Unexepected expression kind");
-            return Error::Failed;
-    }
+Error Emitter::EmitUnaryOperand(const UnaryExpr& expr)
+{
+    Out() << UnaryOperator(expr.Op);
+    Out() << "(";
+    TRY(Emit(expr.Data));
+    Out() << ")";
+    return Error::Ok;
 }

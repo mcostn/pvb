@@ -117,8 +117,28 @@ struct AssignExpr : Expr
     AssignExpr(Value type) : Expr(AstNodeKind::AssignExpr, type) {}
 };
 
+enum class Builtin
+{
+    None,
+
+    Sqrt,
+    Sin,
+    Cos,
+    Tan,
+    Atan,
+
+    Min,
+    Max,
+    Round,
+
+    Abs,
+    Floor,
+    Ceil,
+};
+
 struct CallExpr : Expr
 {
+    Builtin BuiltinKind = Builtin::None;
     std::string Function;
     std::vector<std::unique_ptr<Expr>> Args;
     CallExpr(Value type) : Expr(AstNodeKind::CallExpr, type) {}
@@ -267,6 +287,7 @@ std::unique_ptr<BlockStmt> Block(Ts&&... stmts)
     return stmt;
 }
 std::unique_ptr<PrintStmt> Print(std::unique_ptr<Expr> expr, bool newline = true);
+std::unique_ptr<ReadStmt> Read(std::unique_ptr<VariableExpr> variable);
 std::unique_ptr<ExitStmt> Exit(std::unique_ptr<Expr> code);
 std::unique_ptr<ExprStmt> ExprStatement(std::unique_ptr<Expr> expr);
 std::unique_ptr<FunctionStmt> Function(Value retType, std::string name, std::vector<Param> params, std::unique_ptr<BlockStmt> body);
@@ -280,6 +301,15 @@ std::unique_ptr<CallExpr> Call(std::string name, Ts&&... args)
 {
     auto stmt = std::make_unique<CallExpr>(VAL_NONE);
     stmt->Function = std::move(name);
+    (stmt->Args.push_back(std::forward<Ts>(args)), ...);
+    return stmt;
+}
+
+template<ExprPtr... Ts>
+std::unique_ptr<CallExpr> Call(Builtin kind, Ts&&... args)
+{
+    auto stmt = std::make_unique<CallExpr>(VAL_NONE);
+    stmt->BuiltinKind = kind;
     (stmt->Args.push_back(std::forward<Ts>(args)), ...);
     return stmt;
 }

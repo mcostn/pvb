@@ -37,7 +37,7 @@ int main()
 CODEGEN_TEST(
     IncludeCmath,
     MakeProgram(
-        Print(Call("sqrt", Int(9)))
+        Print(Call(Builtin::Sqrt, Int(9)))
     ),
     R"(#include <cmath>
 #include <iostream>
@@ -54,7 +54,7 @@ CODEGEN_TEST(
     MakeProgram(
         Print(Int(1)),
         Exit(Int(0)),
-        Print(Call("sqrt", Int(16)))
+        Print(Call(Builtin::Sqrt, Int(16)))
     ),
     R"(#include <cmath>
 #include <cstdlib>
@@ -90,9 +90,9 @@ int main()
 CODEGEN_TEST(
     DuplicateCmathInclude,
     MakeProgram(
-        Print(Call("sqrt", Int(4))),
-        Print(Call("sin", Int(0))),
-        Print(Call("cos", Int(0)))
+        Print(Call(Builtin::Sqrt, Int(4))),
+        Print(Call(Builtin::Sin, Int(0))),
+        Print(Call(Builtin::Cos, Int(0)))
     ),
     R"(#include <cmath>
 #include <iostream>
@@ -114,7 +114,7 @@ CODEGEN_TEST(
             "foo",
             {},
             Block(
-                Print(Call("sqrt", Int(25)))
+                Print(Call(Builtin::Sqrt, Int(25)))
             )
         )
     ),
@@ -204,6 +204,54 @@ int main()
 {
     cout << 1;
     cout << 2;
+}
+)")
+
+CODEGEN_TEST(
+    ReadString,
+    AST_ReadString,
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cin >> value;
+}
+)")
+
+CODEGEN_TEST(
+    ReadInt,
+    AST_ReadInt,
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cin >> value;
+}
+)")
+
+CODEGEN_TEST(
+    ReadFloat,
+    AST_ReadFloat,
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cin >> value;
+}
+)")
+
+CODEGEN_TEST(
+    ReadAny,
+    AST_ReadAny,
+R"(#include <iostream>
+using namespace std;
+
+int main()
+{
+    cin >> value;
 }
 )")
 

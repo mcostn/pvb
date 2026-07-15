@@ -5,27 +5,45 @@
 #include "codegen/backend.hpp"
 #include "util/logger.hpp"
 
+struct PythonContext
+{
+    std::unordered_set<std::string> Imports {};
+};
+
 class PythonEmitter : public Emitter
 {
 public:
     using Emitter::Emitter;
 
-    Error EmitProgram(const Program& program) override;
+    // Operator lookup
+    std::string_view BinaryOperator(BinaryOp op) override;
+    std::string_view UnaryOperator(UnaryOp op) override;
 
-    Error EmitPrint(const PrintStmt &stmt) override;
-    Error EmitExit(const ExitStmt &stmt) override;
-    Error EmitExprStmt(const ExprStmt& stmt) override;
-    Error EmitBlock(const BlockStmt &stmt) override;
-    Error EmitFunction(const FunctionStmt &stmt) override;
-    Error EmitIf(const IfStmt &stmt) override;
-    Error EmitWhile(const WhileStmt &stmt) override;
-    Error EmitFor(const ForStmt &stmt) override;
-    Error EmitDeclVar(const DeclVarStmt &stmt) override;
+    std::string_view BuiltinName(Builtin b) override;
+    void EmitBuiltinRequirements(Builtin b) override;
 
-    Error EmitLiteral(const LiteralExpr &expr) override;
-    Error EmitVariable(const VariableExpr &expr) override;
-    Error EmitAssign(const AssignExpr &expr) override;
-    Error EmitUnary(const UnaryExpr &expr) override;
-    Error EmitBinary(const BinaryExpr &expr) override;
-    Error EmitCall(const CallExpr &expr) override;
+    // Visitors
+    Error Visit(const Program&) override;
+
+    Error Visit(const LiteralExpr&) override;
+    Error Visit(const VariableExpr&) override;
+    Error Visit(const AssignExpr&) override;
+    Error Visit(const UnaryExpr&) override;
+    Error Visit(const BinaryExpr&) override;
+    Error Visit(const CallExpr&) override;
+
+    Error Visit(const PrintStmt&) override;
+    Error Visit(const ReadStmt&) override;
+    Error Visit(const ExitStmt&) override;
+    Error Visit(const ExprStmt&) override;
+    Error Visit(const BlockStmt&) override;
+    Error Visit(const FunctionStmt&) override;
+    Error Visit(const IfStmt&) override;
+    Error Visit(const WhileStmt&) override;
+    Error Visit(const ForStmt&) override;
+    Error Visit(const DeclVarStmt&) override;
+
+    PythonContext Context;
+    std::ostringstream Main;
+    std::ostringstream Functions;
 };

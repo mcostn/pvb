@@ -1,42 +1,166 @@
+#include <algorithm>
 #include "codegen/py_backend.hpp"
 
-Error PythonEmitter::EmitProgram(const Program &program)
+std::string_view PythonEmitter::UnaryOperator(UnaryOp op)
 {
-    for (const auto &stmt : program.Statements) {
+    switch (op) {
+        case UnaryOp::Negate: return "-";
+        case UnaryOp::Not:    return "not ";
+    }
+
+    return "";
+}
+
+std::string_view PythonEmitter::BinaryOperator(BinaryOp op)
+{
+    switch (op) {
+        case BinaryOp::Add:          return "+";
+        case BinaryOp::Sub:          return "-";
+        case BinaryOp::Mul:          return "*";
+        case BinaryOp::Div:          return "/";
+        case BinaryOp::Mod:          return "%";
+
+        case BinaryOp::Less:         return "<";
+        case BinaryOp::Greater:      return ">";
+        case BinaryOp::LessEqual:    return "<=";
+        case BinaryOp::GreaterEqual: return ">=";
+
+        case BinaryOp::Equal:        return "==";
+        case BinaryOp::NotEqual:     return "!=";
+
+        case BinaryOp::And:          return "and";
+        case BinaryOp::Or:           return "or";
+    }
+
+    return "";
+}
+
+std::string_view PythonEmitter::BuiltinName(Builtin b)
+{
+    switch (b)
+    {
+        case Builtin::Sqrt:  return "math.sqrt";
+        case Builtin::Sin:   return "math.sin";
+        case Builtin::Cos:   return "math.cos";
+        case Builtin::Tan:   return "math.tan";
+        case Builtin::Atan:  return "math.atan";
+
+        case Builtin::Max:   return "max";
+        case Builtin::Min:   return "min";
+        case Builtin::Round: return "round";
+
+        case Builtin::Abs:   return "abs";
+        case Builtin::Floor: return "math.floor";
+        case Builtin::Ceil:  return "math.ceil";
+
+        default:
+            return {};
+    }
+};
+
+void PythonEmitter::EmitBuiltinRequirements(Builtin b)
+{
+    switch (b)
+    {
+        case Builtin::Sqrt:
+        case Builtin::Sin:
+        case Builtin::Cos:
+        case Builtin::Tan:
+        case Builtin::Atan:
+        case Builtin::Floor:
+        case Builtin::Ceil:
+            Context.Imports.insert("math");
+            return;
+
+        default:
+            return;
+    }
+}
+
+Error PythonEmitter::Visit(const Program &program)
+{
+    PushOut(&Main);
+    for (const auto& stmt : program.Statements) {
+        if (stmt->Kind == AstNodeKind::FunctionStmt) {
+            TRY(Emit(*stmt));
+            continue;
+        }
+
         Indent();
-        TRY(EmitStmt(*stmt));
+        TRY(Emit(stmt));
         Out() << "\n";
+    }
+    PopOut();
+
+    std::vector<std::string> sortedImports(
+        Context.Imports.begin(),
+        Context.Imports.end()
+    );
+    std::sort(sortedImports.begin(), sortedImports.end());
+    for (const auto& import : sortedImports)
+        Out() << "import " << import << "\n";
+    if (!sortedImports.empty())
+        Out() << "\n";
+
+    std::string func = Functions.str();
+    if (!func.empty()) {
+        Out() << func << "\n";
+    }
+    Out() << Main.str();
+
+    return Error::Ok;
+}
+
+Error PythonEmitter::Visit(const PrintStmt &stmt)
+{
+    Out() << "print(";
+    TRY(Emit(stmt.Data));
+    if (!stmt.Newline)
+        Out() << ", end=''";
+    Out() << ")";
+    return Error::Ok;
+}
+
+Error PythonEmitter::Visit(const ReadStmt &stmt)
+{
+    Out() << stmt.Variable->Name << " = ";
+
+    Value type = stmt.Variable->Type;
+    if (type == VAL_ANY) {
+        Out() << "input()";
+    } else if (type & VAL_INT) {
+        Out() << "int(input())";
+    } else if (type & VAL_FLOAT) {
+        Out() << "float(input())";
+    } else if (type & VAL_BOOL) {
+        Out() << "input().lower() == \"true\"";
+    } else if (type & VAL_STRING) {
+        Out() << "input()";
+    } else {
+        return Error::Failed;
     }
 
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitPrint(const PrintStmt &stmt)
+Error PythonEmitter::Visit(const ExitStmt &stmt)
 {
-    Out() << "print(";
-    TRY(EmitExpr(*stmt.Data));
-    Out() << ")";
-    return Error::Ok;
-}
+    Context.Imports.insert("sys");
 
-Error PythonEmitter::EmitExit(const ExitStmt &stmt)
-{
-    // TODO: Dynamic imports
-    Out() << "import sys\n";
     Out() << "sys.exit(";
-    TRY(EmitExpr(*stmt.Code));
+    TRY(Emit(*stmt.Code));
     Out() << ")";
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitExprStmt(const ExprStmt &stmt)
+Error PythonEmitter::Visit(const ExprStmt &stmt)
 {
     Indent();
-    TRY(EmitExpr(*stmt.Expression));
+    TRY(Emit(stmt.Expression));
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitBlock(const BlockStmt &stmt)
+Error PythonEmitter::Visit(const BlockStmt &stmt)
 {
     Out() << ":\n";
     ++IndentLevel;
@@ -44,18 +168,17 @@ Error PythonEmitter::EmitBlock(const BlockStmt &stmt)
         Indent();
         Out() << "...";
     } else {
-        for (const auto &s : stmt.Statements) {
-            Indent();
-            TRY(EmitStmt(*s));
-        }
+        TRY(EmitStatementList(stmt));
     }
     --IndentLevel;
 
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitFunction(const FunctionStmt &stmt)
+Error PythonEmitter::Visit(const FunctionStmt &stmt)
 {
+    PushOut(&Functions);
+
     Indent();
     Out() << "def " << stmt.Name << "(";
 
@@ -67,53 +190,55 @@ Error PythonEmitter::EmitFunction(const FunctionStmt &stmt)
 
     Out() << ")";
 
-    TRY(EmitBlock(*stmt.Body));
+    TRY(Emit(stmt.Body));
     Out() << "\n";
+
+    PopOut();
 
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitIf(const IfStmt &stmt)
+Error PythonEmitter::Visit(const IfStmt &stmt)
 {
     Out() << "if ";
-    TRY(EmitExpr(*stmt.Condition));
+    TRY(Emit(*stmt.Condition));
 
     if (stmt.ThenBranch->Kind != AstNodeKind::BlockStmt)
         Out() << ": ";
-    TRY(EmitStmt(*stmt.ThenBranch));
+    TRY(Emit(stmt.ThenBranch));
 
     if (stmt.ElseBranch) {
         Out() << "\n";
         Out() << "else";
-        TRY(EmitStmt(*stmt.ElseBranch));
+        TRY(Emit(stmt.ElseBranch));
     }
 
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitWhile(const WhileStmt &stmt)
+Error PythonEmitter::Visit(const WhileStmt &stmt)
 {
     Out() << "while ";
-    TRY(EmitExpr(*stmt.Condition));
+    TRY(Emit(*stmt.Condition));
     if (stmt.Body->Kind != AstNodeKind::BlockStmt)
         Out() << ": ";
 
-    TRY(EmitStmt(*stmt.Body));
+    TRY(Emit(*stmt.Body));
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitFor(const ForStmt &stmt)
+Error PythonEmitter::Visit(const ForStmt &stmt)
 {
     // init
     if (stmt.Init) {
-        TRY(EmitStmt(*stmt.Init));
+        TRY(Emit(*stmt.Init));
         Out() << "\n";
     }
 
     Indent();
     Out() << "while ";
 
-    if (stmt.Condition) TRY(EmitExpr(*stmt.Condition));
+    if (stmt.Condition) TRY(Emit(*stmt.Condition));
     else Out() << "True";
 
     if (stmt.Body) {
@@ -122,7 +247,7 @@ Error PythonEmitter::EmitFor(const ForStmt &stmt)
             Out() << ": ";
         }
 
-        TRY(EmitStmt(*stmt.Body));
+        TRY(Emit(*stmt.Body));
         if (stmt.Body->Kind != AstNodeKind::BlockStmt)
             Out() << "\n";
 
@@ -130,7 +255,7 @@ Error PythonEmitter::EmitFor(const ForStmt &stmt)
             Out() << "\n";
             ++IndentLevel;
             Indent();
-            TRY(EmitExpr(*stmt.Update));
+            TRY(Emit(*stmt.Update));
             --IndentLevel;
         }
 
@@ -142,14 +267,14 @@ Error PythonEmitter::EmitFor(const ForStmt &stmt)
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitDeclVar(const DeclVarStmt &stmt)
+Error PythonEmitter::Visit(const DeclVarStmt &stmt)
 {
     Indent();
     Out() << stmt.Name;
 
     if (stmt.Initializer) {
         Out() << " = ";
-        TRY(EmitExpr(*stmt.Initializer));
+        TRY(Emit(*stmt.Initializer));
     } else {
         Out() << " = None";
     }
@@ -157,7 +282,7 @@ Error PythonEmitter::EmitDeclVar(const DeclVarStmt &stmt)
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitLiteral(const LiteralExpr &expr)
+Error PythonEmitter::Visit(const LiteralExpr &expr)
 {
     std::visit([this](auto&& value) {
         using T = std::decay_t<decltype(value)>;
@@ -174,75 +299,45 @@ Error PythonEmitter::EmitLiteral(const LiteralExpr &expr)
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitVariable(const VariableExpr &expr)
+Error PythonEmitter::Visit(const VariableExpr &expr)
 {
     Out() << expr.Name;
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitAssign(const AssignExpr &expr)
+Error PythonEmitter::Visit(const AssignExpr &expr)
 {
     Out() << expr.Name;
     Out() << " = ";
-    TRY(EmitExpr(*expr.ValueExpr));
+    TRY(Emit(*expr.ValueExpr));
     return Error::Ok;
 }
 
-Error PythonEmitter::EmitUnary(const UnaryExpr &expr)
+Error PythonEmitter::Visit(const UnaryExpr &expr)
 {
-    switch (expr.Op) {
-        case UnaryOp::Negate: Out() << "-"; break;
-        case UnaryOp::Not:    Out() << "not "; break;
+    return EmitUnaryOperand(expr);
+}
+
+Error PythonEmitter::Visit(const BinaryExpr &expr)
+{
+    Out() << "(";
+    TRY(EmitBinaryOperands(expr));
+    Out() << ")";
+    return Error::Ok;
+}
+
+Error PythonEmitter::Visit(const CallExpr &expr)
+{
+    if (expr.BuiltinKind != Builtin::None) {
+        EmitBuiltinRequirements(expr.BuiltinKind);
+        Out() << BuiltinName(expr.BuiltinKind);
+    } else {
+        Out() << expr.Function;
     }
 
     Out() << "(";
-    TRY(EmitExpr(*expr.Data));
-    Out() << ")";
-    return Error::Ok;
-}
-
-Error PythonEmitter::EmitBinary(const BinaryExpr &expr)
-{
-    Out() << "(";
-    TRY(EmitExpr(*expr.Left));
-
-    Out() << ' ';
-    switch (expr.Op) {
-        case BinaryOp::Add: Out() << "+"; break;
-        case BinaryOp::Sub: Out() << "-"; break;
-        case BinaryOp::Mul: Out() << "*"; break;
-        case BinaryOp::Div: Out() << "/"; break;
-        case BinaryOp::Mod: Out() << "%"; break;
-
-        case BinaryOp::Less: Out() << "<"; break;
-        case BinaryOp::Greater: Out() << ">"; break;
-        case BinaryOp::LessEqual: Out() << "<="; break;
-        case BinaryOp::GreaterEqual: Out() << ">="; break;
-
-        case BinaryOp::Equal: Out() << "=="; break;
-        case BinaryOp::NotEqual: Out() << "!="; break;
-
-        case BinaryOp::And: Out() << "and"; break;
-        case BinaryOp::Or:  Out() << "or"; break;
-    }
-    Out() << ' ';
-
-    TRY(EmitExpr(*expr.Right));
+    TRY(EmitExpressionList(expr.Args));
     Out() << ")";
 
-    return Error::Ok;
-}
-
-Error PythonEmitter::EmitCall(const CallExpr &expr)
-{
-    Out() << expr.Function << "(";
-
-    for (size_t i = 0; i < expr.Args.size(); ++i) {
-        TRY(EmitExpr(*expr.Args[i]));
-        if (i + 1 < expr.Args.size())
-            Out() << ", ";
-    }
-
-    Out() << ")";
     return Error::Ok;
 }

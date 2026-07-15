@@ -15,7 +15,85 @@ static std::string_view ValueToCppType(Value val)
     return "void";
 }
 
-Error CppEmitter::EmitProgram(const Program &program)
+std::string_view CppEmitter::UnaryOperator(UnaryOp op)
+{
+    switch (op) {
+        case UnaryOp::Negate: return "-";
+        case UnaryOp::Not:    return "!";
+    }
+
+    return "";
+}
+
+std::string_view CppEmitter::BinaryOperator(BinaryOp op)
+{
+    switch (op) {
+        case BinaryOp::Add:          return "+";
+        case BinaryOp::Sub:          return "-";
+        case BinaryOp::Mul:          return "*";
+        case BinaryOp::Div:          return "/";
+        case BinaryOp::Mod:          return "%";
+
+        case BinaryOp::Less:         return "<";
+        case BinaryOp::Greater:      return ">";
+        case BinaryOp::LessEqual:    return "<=";
+        case BinaryOp::GreaterEqual: return ">=";
+
+        case BinaryOp::Equal:        return "==";
+        case BinaryOp::NotEqual:     return "!=";
+
+        case BinaryOp::And:          return "&&";
+        case BinaryOp::Or:           return "||";
+    }
+
+    return "";
+}
+
+std::string_view CppEmitter::BuiltinName(Builtin b)
+{
+    switch (b)
+    {
+        case Builtin::Sqrt:  return "sqrt";
+        case Builtin::Sin:   return "sin";
+        case Builtin::Cos:   return "cos";
+        case Builtin::Tan:   return "tan";
+        case Builtin::Atan:  return "atan";
+
+        case Builtin::Max:   return "max";
+        case Builtin::Min:   return "min";
+        case Builtin::Round: return "round";
+
+        case Builtin::Abs:   return "abs";
+        case Builtin::Floor: return "floor";
+        case Builtin::Ceil:  return "ceil";
+
+        default:
+            return {};
+    }
+};
+
+void CppEmitter::EmitBuiltinRequirements(Builtin b)
+{
+    switch (b)
+    {
+        case Builtin::Sqrt:
+        case Builtin::Sin:
+        case Builtin::Cos:
+        case Builtin::Tan:
+        case Builtin::Atan:
+        case Builtin::Max:
+        case Builtin::Min:
+        case Builtin::Round:
+            Context.Includes.insert("<cmath>");
+            Context.Namespaces.insert("std");
+            return;
+
+        default:
+            return;
+    }
+};
+
+Error CppEmitter::Visit(const Program &program)
 {
     PushOut(&Main);
     Out() << "int main()\n"
@@ -23,12 +101,12 @@ Error CppEmitter::EmitProgram(const Program &program)
     IndentLevel++;
     for (const auto &stmt : program.Statements) {
         if (stmt->Kind == AstNodeKind::FunctionStmt) {
-            TRY(EmitStmt(*stmt));
+            TRY(Emit(*stmt));
             continue;
         }
 
         Indent();
-        TRY(EmitStmt(*stmt));
+        TRY(Emit(*stmt));
         Out() << "\n";
     }
     IndentLevel--;
@@ -61,13 +139,13 @@ Error CppEmitter::EmitProgram(const Program &program)
     return Error::Ok;
 }
 
-Error CppEmitter::EmitPrint(const PrintStmt &stmt)
+Error CppEmitter::Visit(const PrintStmt &stmt)
 {
     Context.Includes.insert("<iostream>");
     Context.Namespaces.insert("std");
 
     Out() << "cout << ";
-    TRY(EmitExpr(*stmt.Data));
+    TRY(Emit(*stmt.Data));
     if (stmt.Newline)
         Out() << " << endl";
     Out() << ";";
@@ -75,33 +153,45 @@ Error CppEmitter::EmitPrint(const PrintStmt &stmt)
     return Error::Ok;
 }
 
-Error CppEmitter::EmitExit(const ExitStmt &stmt)
+Error CppEmitter::Visit(const ReadStmt &stmt)
+{
+    Context.Includes.insert("<iostream>");
+    Context.Namespaces.insert("std");
+
+    Out() << "cin >> "
+        << stmt.Variable->Name
+        << ";";
+
+    return Error::Ok;
+}
+
+Error CppEmitter::Visit(const ExitStmt &stmt)
 {
     Context.Includes.insert("<cstdlib>");
     Context.Namespaces.insert("std");
 
     Out() << "exit(";
-    TRY(EmitExpr(*stmt.Code));
+    TRY(Emit(*stmt.Code));
     Out() << ");";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitExprStmt(const ExprStmt &stmt)
+Error CppEmitter::Visit(const ExprStmt &stmt)
 {
-    TRY(EmitExpr(*stmt.Expression));
+    TRY(Emit(*stmt.Expression));
     Out() << ";";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitBlock(const BlockStmt &stmt)
+Error CppEmitter::Visit(const BlockStmt &stmt)
 {
     Out() << "{\n";
     ++IndentLevel;
     for (const auto& s : stmt.Statements) {
         Indent();
-        TRY(EmitStmt(*s));
+        TRY(Emit(*s));
         Out() << "\n";
     }
     --IndentLevel;
@@ -111,7 +201,7 @@ Error CppEmitter::EmitBlock(const BlockStmt &stmt)
     return Error::Ok;
 }
 
-Error CppEmitter::EmitFunction(const FunctionStmt &stmt)
+Error CppEmitter::Visit(const FunctionStmt &stmt)
 {
     PushOut(&Functions);
 
@@ -132,7 +222,7 @@ Error CppEmitter::EmitFunction(const FunctionStmt &stmt)
     Out() << decl.str() << "\n";
     int prevIndentLevel = IndentLevel;
     IndentLevel = 0;
-    TRY(EmitBlock(*stmt.Body));
+    TRY(Emit(*stmt.Body));
     IndentLevel = prevIndentLevel;
     Out() << '\n';
 
@@ -140,41 +230,41 @@ Error CppEmitter::EmitFunction(const FunctionStmt &stmt)
     return Error::Ok;
 }
 
-Error CppEmitter::EmitIf(const IfStmt &stmt)
+Error CppEmitter::Visit(const IfStmt &stmt)
 {
     Out() << "if (";
-    TRY(EmitExpr(*stmt.Condition));
+    TRY(Emit(*stmt.Condition));
     Out() << ") ";
 
-    TRY(EmitStmt(*stmt.ThenBranch));
+    TRY(Emit(*stmt.ThenBranch));
     if (stmt.ElseBranch) {
         Out() << " else ";
-        TRY(EmitStmt(*stmt.ElseBranch));
+        TRY(Emit(*stmt.ElseBranch));
     }
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitWhile(const WhileStmt &stmt)
+Error CppEmitter::Visit(const WhileStmt &stmt)
 {
     Out() << "while (";
-    TRY(EmitExpr(*stmt.Condition));
+    TRY(Emit(*stmt.Condition));
     Out() << ") ";
-    TRY(EmitStmt(*stmt.Body));
+    TRY(Emit(*stmt.Body));
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitFor(const ForStmt &stmt)
+Error CppEmitter::Visit(const ForStmt &stmt)
 {
     Out() << "for (";
     if (stmt.Init) {
        if (stmt.Init->Kind == AstNodeKind::ExprStmt) {
            auto &exprStmt = static_cast<const ExprStmt&>(*stmt.Init);
-           TRY(EmitExpr(*exprStmt.Expression));
+           TRY(Emit(*exprStmt.Expression));
        } else if (stmt.Init->Kind == AstNodeKind::DeclVarStmt) {
            auto &declStmt = static_cast<const DeclVarStmt&>(*stmt.Init);
-           TRY(EmitDeclVar(declStmt));
+           TRY(Emit(declStmt));
        }
        Out() << " ";
     } else {
@@ -182,32 +272,32 @@ Error CppEmitter::EmitFor(const ForStmt &stmt)
     }
 
     if (stmt.Condition)
-        TRY(EmitExpr(*stmt.Condition));
+        TRY(Emit(*stmt.Condition));
     Out() << "; ";
 
     if (stmt.Update)
-        TRY(EmitExpr(*stmt.Update));
+        TRY(Emit(*stmt.Update));
     Out() << ") ";
 
-    TRY(EmitStmt(*stmt.Body));
+    TRY(Emit(*stmt.Body));
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitDeclVar(const DeclVarStmt &stmt)
+Error CppEmitter::Visit(const DeclVarStmt &stmt)
 {
     Out() << ValueToCppType(stmt.Type) << ' ';
     Out() << stmt.Name;
     if (stmt.Initializer) {
         Out() << " = ";
-        TRY(EmitExpr(*stmt.Initializer));
+        TRY(Emit(*stmt.Initializer));
     }
     Out() << ";";
 
     return Error::Ok;
 }
 
-Error CppEmitter::EmitLiteral(const LiteralExpr &expr)
+Error CppEmitter::Visit(const LiteralExpr &expr)
 {
     std::visit([this](auto&& value) {
         using T = std::decay_t<decltype(value)>;
@@ -223,71 +313,45 @@ Error CppEmitter::EmitLiteral(const LiteralExpr &expr)
     return Error::Ok;
 }
 
-Error CppEmitter::EmitVariable(const VariableExpr &expr)
+Error CppEmitter::Visit(const VariableExpr &expr)
 {
     Out() << expr.Name;
     return Error::Ok;
 }
 
-Error CppEmitter::EmitAssign(const AssignExpr &expr)
+Error CppEmitter::Visit(const AssignExpr &expr)
 {
     Out() << expr.Name;
     Out() << " = ";
-    TRY(EmitExpr(*expr.ValueExpr));
+    TRY(Emit(*expr.ValueExpr));
     return Error::Ok;
 }
 
-Error CppEmitter::EmitUnary(const UnaryExpr &expr)
+Error CppEmitter::Visit(const UnaryExpr &expr)
 {
-    #define EMIT_UNARY_SYMBOL(Name, Op, Type, Sym) case UnaryOp::Op: Out() << Sym; break;
-    switch (expr.Op) {
-        UNARY_OP_LIST(EMIT_UNARY_SYMBOL)
-    }
-    #undef EMIT_UNARY_SYMBOL
+    return EmitUnaryOperand(expr);
+}
 
+Error CppEmitter::Visit(const BinaryExpr &expr)
+{
     Out() << "(";
-    TRY(EmitExpr(*expr.Data));
+    TRY(EmitBinaryOperands(expr));
     Out() << ")";
     return Error::Ok;
 }
 
-Error CppEmitter::EmitBinary(const BinaryExpr &expr)
+Error CppEmitter::Visit(const CallExpr &expr)
 {
-    std::string_view opStr;
-    #define EMIT_BINARY_SYMBOL(Name, Op, Type, Sym) case BinaryOp::Op: opStr = Sym; break;
-    switch(expr.Op) {
-        BINARY_OP_LIST(EMIT_BINARY_SYMBOL)
+    if (expr.BuiltinKind != Builtin::None) {
+        EmitBuiltinRequirements(expr.BuiltinKind);
+        Out() << BuiltinName(expr.BuiltinKind);
+    } else {
+        Out() << expr.Function;
     }
-    #undef EMIT_BINARY_SYMBOL
 
     Out() << "(";
-    TRY(EmitExpr(*expr.Left));
-    Out() << " " << opStr << " ";
-    TRY(EmitExpr(*expr.Right));
+    TRY(EmitExpressionList(expr.Args));
     Out() << ")";
 
-    return Error::Ok;
-}
-
-Error CppEmitter::EmitCall(const CallExpr &expr)
-{
-    if (expr.Function == "max"
-        || expr.Function == "min"
-        || expr.Function == "sqrt"
-        || expr.Function == "round"
-        || expr.Function == "sin"
-        || expr.Function == "cos"
-        || expr.Function == "tan"
-        || expr.Function == "atan")
-        Context.Includes.insert("<cmath>");
-
-    Out() << expr.Function;
-    Out() << "(";
-    for (size_t i = 0; i < expr.Args.size(); ++i) {
-        TRY(EmitExpr(*expr.Args[i]));
-        if (i != expr.Args.size() - 1)
-            Out() << ", ";
-    }
-    Out() << ")";
     return Error::Ok;
 }

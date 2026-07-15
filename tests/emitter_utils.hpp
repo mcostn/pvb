@@ -54,6 +54,26 @@ std::string Generate(const Program &program)
         Print(Int(2), false) \
     )
 
+#define AST_ReadString \
+    MakeProgram( \
+        Read(Var("value", VAL_STRING)) \
+    )
+
+#define AST_ReadInt \
+    MakeProgram( \
+        Read(Var("value", VAL_INT)) \
+    )
+
+#define AST_ReadFloat \
+    MakeProgram( \
+        Read(Var("value", VAL_FLOAT)) \
+    )
+
+#define AST_ReadAny \
+    MakeProgram( \
+        Read(Var("value", VAL_ANY)) \
+    )
+
 #define AST_Negate \
     MakeProgram( \
         Print(Negate(Int(42))) \

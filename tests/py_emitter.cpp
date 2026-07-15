@@ -11,6 +11,12 @@ CODEGEN_TEST(
 )")
 
 CODEGEN_TEST(
+    PrintFloat,
+    AST_PrintFloat,
+    R"(print(3.5)
+)")
+
+CODEGEN_TEST(
     PrintBool,
     AST_PrintBool,
     R"(print(True)
@@ -20,6 +26,37 @@ CODEGEN_TEST(
     PrintString,
     AST_PrintString,
     R"(print("Hello, World!")
+)")
+
+CODEGEN_TEST(
+    PrintNoNewline,
+    AST_PrintNoNewline,
+    R"(print(1, end='')
+print(2, end='')
+)")
+
+CODEGEN_TEST(
+    ReadString,
+    AST_ReadString,
+R"(value = input()
+)")
+
+CODEGEN_TEST(
+    ReadInt,
+    AST_ReadInt,
+R"(value = int(input())
+)")
+
+CODEGEN_TEST(
+    ReadFloat,
+    AST_ReadFloat,
+R"(value = float(input())
+)")
+
+CODEGEN_TEST(
+    ReadAny,
+    AST_ReadAny,
+R"(value = input()
 )")
 
 CODEGEN_TEST(
@@ -152,6 +189,7 @@ CODEGEN_TEST(
     Exit,
     AST_Exit,
     R"(import sys
+
 sys.exit(1)
 )")
 
@@ -276,7 +314,6 @@ CODEGEN_TEST(
     AST_MultipleFunctions,
     R"(def foo():
     print(1)
-
 def bar():
     print(2)
 

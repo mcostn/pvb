@@ -93,6 +93,13 @@ std::unique_ptr<PrintStmt> Print(std::unique_ptr<Expr> expr, bool newline)
     return stmt;
 }
 
+std::unique_ptr<ReadStmt> Read(std::unique_ptr<VariableExpr> variable)
+{
+    auto stmt = std::make_unique<ReadStmt>();
+    stmt->Variable = std::move(variable);
+    return stmt;
+}
+
 std::unique_ptr<ExitStmt> Exit(std::unique_ptr<Expr> code)
 {
     auto stmt = std::make_unique<ExitStmt>();
