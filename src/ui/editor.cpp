@@ -62,10 +62,10 @@ void Editor::DrawMenuBar()
             if (ProjectPath.empty()) {
                 SaveProjectAs();
             } else {
-                SaveProject(
+                DISCARD(SaveProject(
                     CanvasView,
                     ProjectPath,
-                    ProjectName);
+                    ProjectName));
             }
         }
 
@@ -199,12 +199,8 @@ void Editor::DrawOpenProjectDialog()
         if (ImGuiFileDialog::Instance()->IsOk()) {
             std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
 
-            ProjectLoadResult result = LoadProject(CanvasView, filePath);
-
-            if (result.Success) {
+            if (LoadProject(CanvasView, filePath) == Error::Ok) {
                 ProjectPath = filePath;
-            } else {
-                std::cerr << result.Error << std::endl;
             }
         }
 
@@ -220,7 +216,7 @@ void Editor::DrawSaveProjectDialog()
                 ImVec2(900, 600))) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
-            SaveProject(CanvasView, path, ProjectName);
+            DISCARD(SaveProject(CanvasView, path, ProjectName));
             ProjectPath = path;
         }
 

@@ -57,6 +57,7 @@ add_library(
     "src/codegen/cpp_backend.cpp"
     "src/codegen/py_backend.cpp"
     "src/codegen/frontend.cpp"
+    "src/util/ini.cpp"
 )
 target_include_directories(
     core
@@ -91,7 +92,7 @@ add_library(
     "src/ui/block_manager.cpp"
     "src/ui/palette.cpp"
     "src/ui/editor.cpp"
-    "src/ui/project_ini.cpp"
+    "src/ui/project.cpp"
     "src/ui/app.cpp"
 )
 target_link_libraries(
@@ -120,6 +121,7 @@ add_executable(
     "tests/block_converter.cpp"
     "tests/test_runner.cpp"
     "tests/block_schema.cpp"
+    "tests/ini.cpp"
 )
 target_link_libraries(
     test_runner
