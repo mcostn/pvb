@@ -1,6 +1,6 @@
 #include "ui/editor.hpp"
 #include "ui/imgui.hpp"
-#include "ui/project_ini.hpp"
+#include "ui/project.hpp"
 
 #include "ImGuiFileDialog.h"
 
@@ -40,10 +40,10 @@ void Editor::Draw()
 
     ImGui::End();
 
-    DrawSaveProjectDialog();
-    DrawOpenProjectDialog();
+    DrawFileDialog();
 
     HandlePaletteDrag();
+    DrawNotifications();
 
     if (CanvasView.ShowDebugWindow) {
         ImGui::ShowMetricsWindow();
@@ -60,21 +60,33 @@ void Editor::DrawMenuBar()
     if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("Save")) {
             if (ProjectPath.empty()) {
-                SaveProjectAs();
+                ShowFileDialog(
+                    "SaveProject",
+                    "Save Project",
+                    ".pvb",
+                    [this](auto& path) { SaveTo(path); }
+                );
             } else {
-                DISCARD(SaveProject(
-                    CanvasView,
-                    ProjectPath,
-                    ProjectName));
+                SaveTo(ProjectPath);
             }
         }
 
         if (ImGui::MenuItem("Save As")) {
-            SaveProjectAs();
+            ShowFileDialog(
+                "SaveProject",
+                "Save Project",
+                ".pvb",
+                [this](auto& path) { SaveTo(path); }
+            );
         }
 
         if (ImGui::MenuItem("Open")) {
-            OpenProject();
+            ShowFileDialog(
+                "OpenProject",
+                "Open Project",
+                ".pvb",
+                [this](auto& path) { LoadFrom(path); }
+            );
         }
 
         ImGui::Separator();
@@ -85,7 +97,6 @@ void Editor::DrawMenuBar()
 
         ImGui::EndMenu();
     }
-
 
 
     if (ImGui::BeginMenu("Build")) {
@@ -164,62 +175,122 @@ void Editor::HandlePaletteDrag()
     }
 }
 
-void Editor::SaveProjectAs()
+void Editor::SaveTo(const std::string& path)
 {
-    IGFD::FileDialogConfig config;
-    config.path = ".";
-    config.flags = ImGuiFileDialogFlags_Modal;
+    Error err = SaveProject(CanvasView, path, ProjectName);
 
-    ImGuiFileDialog::Instance()->OpenDialog(
-        "SaveProject",
-        "Save Project",
-        ".pvb",
-        config);
-}
-
-void Editor::OpenProject()
-{
-    IGFD::FileDialogConfig config;
-    config.path = ".";
-    config.flags = ImGuiFileDialogFlags_Modal;
-
-    ImGuiFileDialog::Instance()->OpenDialog(
-            "OpenProject",
-            "Open Project",
-            ".pvb",
-            config);
-}
-
-void Editor::DrawOpenProjectDialog()
-{
-    if (ImGuiFileDialog::Instance()->Display(
-                "OpenProject",
-                ImGuiWindowFlags_NoCollapse,
-                ImVec2(900, 600))) {
-        if (ImGuiFileDialog::Instance()->IsOk()) {
-            std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
-
-            if (LoadProject(CanvasView, filePath) == Error::Ok) {
-                ProjectPath = filePath;
-            }
-        }
-
-        ImGuiFileDialog::Instance()->Close();
+    if (err == Error::Ok) {
+        ProjectPath = path;
+        Notify("Saved Project: " + ProjectPath);
+    } else {
+        Notify("Save failed: " + std::string(to_string(err)), true);
     }
 }
 
-void Editor::DrawSaveProjectDialog()
+void Editor::LoadFrom(const std::string& path)
 {
+    Error err = LoadProject(CanvasView, path);
+
+    if (err == Error::Ok) {
+        ProjectPath = path;
+        Notify("Loaded project: " + ProjectPath);
+    } else {
+        Notify("Load failed: " + std::string(to_string(err)), true);
+    }
+}
+
+void Editor::DrawFileDialog()
+{
+    if (ActiveDialog.empty())
+        return;
+
     if (ImGuiFileDialog::Instance()->Display(
-                "SaveProject",
-                ImGuiWindowFlags_NoCollapse,
-                ImVec2(900, 600))) {
+            ActiveDialog.c_str(),
+            ImGuiWindowFlags_NoCollapse,
+            ImVec2(900, 600))) {
+
         if (ImGuiFileDialog::Instance()->IsOk()) {
-            std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
-            DISCARD(SaveProject(CanvasView, path, ProjectName));
-            ProjectPath = path;
+            std::string path =
+                ImGuiFileDialog::Instance()->GetFilePathName();
+
+            FileDialogCallback(path);
         }
 
         ImGuiFileDialog::Instance()->Close();
+
+        ActiveDialog.clear();
+        FileDialogCallback = {};
+    }
+}
+
+void Editor::ShowFileDialog(
+    const char* id,
+    const char* title,
+    const char* extension,
+    std::function<void(const std::string&)> callback)
+{
+    ActiveDialog = id;
+    FileDialogCallback = callback;
+
+    IGFD::FileDialogConfig config;
+    config.path = ".";
+    config.flags = ImGuiFileDialogFlags_Modal;
+
+    ImGuiFileDialog::Instance()->OpenDialog(
+            id,
+            title,
+            extension,
+            config);
+}
+
+void Editor::Notify(const std::string &text, bool error)
+{
+    Notifications.push_back({ text, 3.0f, error });
+}
+
+void Editor::DrawNotifications()
+{
+    constexpr float Padding = 20.0f;
+    constexpr float Spacing = 10.0f;
+    float offset = 0.0f;
+
+    int id = 0;
+    for (auto it = Notifications.begin(); it != Notifications.end();) {
+        ImGui::SetNextWindowPos(
+                ImVec2(
+                    ImGui::GetIO().DisplaySize.x - Padding,
+                    ImGui::GetIO().DisplaySize.y - Padding - offset),
+                ImGuiCond_Always,
+                ImVec2(1.0f, 1.0f));
+
+        ImGui::SetNextWindowSizeConstraints(
+                ImVec2(200, 0),
+                ImVec2(400, FLT_MAX));
+
+        ImGui::SetNextWindowBgAlpha(0.85f);
+
+        ImGui::Begin(
+                ("##notification_" + std::to_string(id++)).c_str(),
+                nullptr,
+                ImGuiWindowFlags_NoDecoration |
+                ImGuiWindowFlags_AlwaysAutoResize |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoSavedSettings);
+
+        if (it->Error)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+        ImGui::TextWrapped("%s", it->Text.c_str());
+        if (it->Error)
+            ImGui::PopStyleColor();
+
+        float height = ImGui::GetWindowHeight();
+
+        ImGui::End();
+
+        offset += height + Spacing;
+
+        it->Time -= ImGui::GetIO().DeltaTime;
+        if (it->Time <= 0.0f) it = Notifications.erase(it);
+        else ++it;
     }
 }

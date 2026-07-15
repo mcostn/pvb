@@ -7,10 +7,15 @@
 struct PaletteDragState
 {
     bool Active = false;
-
     const BlockDefinition *Definition = nullptr;
-
     std::unique_ptr<VisualBlock> Ghost;
+};
+
+struct EditorNotification
+{
+    std::string Text;
+    float Time = 0.0f;
+    bool Error = false;
 };
 
 class Editor
@@ -21,19 +26,30 @@ public:
     void Draw();
     void DrawMenuBar();
 
+    BlockPalette Palette;
+    PaletteDragState Drag;
     void BeginPaletteDrag(const BlockDefinition &def);
     void HandlePaletteDrag();
 
     Canvas CanvasView;
-    BlockPalette Palette;
-    PaletteDragState Drag;
-
     BlockRegistry Registry;
 
     std::string ProjectPath;
     std::string ProjectName;
-    void SaveProjectAs();
-    void OpenProject();
-    void DrawOpenProjectDialog();
-    void DrawSaveProjectDialog();
+
+    void SaveTo(const std::string& path);
+    void LoadFrom(const std::string& path);
+
+    std::string ActiveDialog;
+    std::function<void(const std::string&)> FileDialogCallback;
+    void DrawFileDialog();
+    void ShowFileDialog(
+        const char* id,
+        const char* title,
+        const char* extension,
+        std::function<void(const std::string&)> callback);
+
+    std::deque<EditorNotification> Notifications;
+    void Notify(const std::string &text, bool error = false);
+    void DrawNotifications();
 };
