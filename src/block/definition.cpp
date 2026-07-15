@@ -1,6 +1,8 @@
 #include "block/definition.hpp"
 #include "util/macro.hpp"
 
+static Error ParseLiteral(Value type, std::string_view text, LiteralValue &out);
+
 Error GenerateBlockSchema(BlockDefinition &def)
 {
     if (def.Fmt.empty()) {
@@ -118,6 +120,11 @@ Error GenerateBlockSchema(BlockDefinition &def)
             }
 
             schema.emplace_back(nameStr, valueType, schemaType);
+            if (!valStr.empty()) {
+                LiteralValue value;
+                TRY(ParseLiteral(valueType, valStr, value));
+                def.DefaultValues.emplace(nameStr, std::move(value));
+            }
         } else {
             if (schema.empty() || schema.back().Type != BlockSchemaType::Text)
                 schema.emplace_back("", VAL_NONE, BlockSchemaType::Text);
@@ -132,6 +139,96 @@ Error GenerateBlockSchema(BlockDefinition &def)
     return Error::Ok;
 }
 
+Error ParseLiteral(Value type, std::string_view text, LiteralValue &out)
+{
+    auto stripQuotes = [](std::string_view s) -> std::string_view {
+        if (s.size() >= 2 &&
+                ((s.front() == '\'' && s.back() == '\'') ||
+                 (s.front() == '"'  && s.back() == '"'))) {
+            return s.substr(1, s.size() - 2);
+        }
+        return s;
+    };
+
+    if (type & VAL_ANY) {
+        if (text == "true") {
+            out = true;
+        } else if (text == "false") {
+            out = false;
+        } else {
+            auto stripped = stripQuotes(text);
+
+            if (stripped.size() != text.size()) {
+                out = std::string(stripped);
+            } else {
+                try {
+                    size_t pos = 0;
+                    int i = std::stoi(std::string(text), &pos);
+
+                    if (pos == text.size()) {
+                        out = i;
+                    } else {
+                        out = static_cast<float>(std::stof(std::string(text)));
+                    }
+                } catch (...) {
+                    out = std::string(text);
+                }
+            }
+        }
+
+        return Error::Ok;
+    }
+
+    if (type & VAL_INT) {
+        try {
+            out = std::stoi(std::string(text));
+        } catch (...) {
+            FAIL_COND_V_MSG(
+                    true,
+                    Error::BlockInvalidFmt,
+                    "Invalid default integer '{}'",
+                    text);
+        }
+        return Error::Ok;
+    }
+
+    if (type & (VAL_FLOAT | VAL_NUMBER)) {
+        try {
+            out = static_cast<float>(std::stof(std::string(text)));
+        } catch (...) {
+            FAIL_COND_V_MSG(
+                    true,
+                    Error::BlockInvalidFmt,
+                    "Invalid default number '{}'",
+                    text);
+        }
+        return Error::Ok;
+    }
+
+    if (type & VAL_BOOL) {
+        if (text == "true") {
+            out = true;
+        } else if (text == "false") {
+            out = false;
+        } else {
+            FAIL_COND_V_MSG(
+                    true,
+                    Error::BlockInvalidFmt,
+                    "Invalid default bool '{}'",
+                    text);
+        }
+
+        return Error::Ok;
+    }
+
+    if (type & VAL_STRING) {
+        out = std::string(stripQuotes(text));
+        return Error::Ok;
+    }
+
+    return Error::BlockInvalidFmt;
+}
+
 std::vector<std::string> BlockSchemaBodySlots(const BlockSchema &schema)
 {
     std::vector<std::string> out;
@@ -139,51 +236,6 @@ std::vector<std::string> BlockSchemaBodySlots(const BlockSchema &schema)
     for (const auto &item : schema)
         if (item.Type == BlockSchemaType::Body)
             out.push_back(item.Name);
-
-    return out;
-}
-
-std::string BlockSchemaToString(const BlockSchema &schema)
-{
-    std::string out = "";
-
-    for (size_t i = 0; i < schema.size(); i++) {
-        const auto &item = schema[i];
-
-        out += "[";
-        out += std::to_string(i);
-        out += "] ";
-
-        switch (item.Type) {
-            case BlockSchemaType::Text:
-                out += "Text    : '";
-                out += item.Name;
-                out += "'";
-                break;
-
-            case BlockSchemaType::Input:
-                out += "Input   : name='";
-                out += item.Name;
-                out += "', type=";
-                out += ValueToString(item.ValueType);
-                break;
-
-            case BlockSchemaType::Var:
-                out += "Var     : name='";
-                out += item.Name;
-                out += "', type=";
-                out += ValueToString(item.ValueType);
-                break;
-
-            case BlockSchemaType::Body:
-                out += "Body    : name='";
-                out += item.Name;
-                out += "'";
-                break;
-        }
-
-        if (i < schema.size() - 1) out += "\n";
-    }
 
     return out;
 }

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "util/error.hpp"
+#include "block/definition.hpp"
 #include "block/converter.hpp"
 
 class BlockRegistry

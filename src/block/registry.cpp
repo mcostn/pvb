@@ -19,6 +19,19 @@ Error BlockRegistry::RegisterBlock(BlockDefinition def)
             Error::BlockInvalidDefinition,
             "Block '{}' cannot be both a statement and an expression",
             def.OpCode);
+    FAIL_COND_V_MSG(
+            def.StmtBuilder && def.Shape == BlockShape::Reporter,
+            Error::BlockInvalidDefinition,
+            "Block '{}' cannot have a reporter shape and a statement builder at the same time",
+            def.OpCode);
+    FAIL_COND_V_MSG(
+            def.ExprBuilder &&
+            (def.Shape == BlockShape::Chain ||
+             def.Shape == BlockShape::Hat ||
+             def.Shape == BlockShape::Cap),
+            Error::BlockInvalidDefinition,
+            "Block '{}' cannot have a statement shape and a expression builder at the same time",
+            def.OpCode);
 
     TRY(GenerateBlockSchema(def));
 
@@ -38,11 +51,13 @@ Error BlockRegistry::RegisterBlock(BlockDefinition def)
     else if (def.ExprBuilder)
         Converter.ExprBuilders.emplace(def.OpCode, def.ExprBuilder);
 
+    if (def.Shape == BlockShape::Unknown) {
+        if (def.StmtBuilder) def.Shape = BlockShape::Chain;
+        else if (def.ExprBuilder) def.Shape = BlockShape::Reporter;
+    }
+
     Definitions.push_back(def);
-    GlobalLogger.Debug(
-            "Registered block '{}' with schema:\n{}",
-            def.OpCode,
-            BlockSchemaToString(def.Schema));
+    GlobalLogger.Debug("Registered block '{}'", def.OpCode);
 
     return Error::Ok;
 }
@@ -84,17 +99,6 @@ BlockRegistry GetBlockRegistry()
         // .StmtBuilder = [](BlockConverter &, const BlockInstance &b) {
         //     return Read(b.Args.at("var"));
         // };
-    }));
-
-    DISCARD(out.RegisterBlock({
-        .Fmt = "Exit {int:code=0}",
-        .Description = "Exits the program with the specified exit code",
-        .OpCode = "exit",
-        .Category = BlockCategory::ControlFlow,
-        .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
-            return Exit(
-                    c.ResolveArg(b.Args.at("code"), VAL_INT));
-        }
     }));
 
     DISCARD(out.RegisterBlock({
@@ -197,6 +201,32 @@ BlockRegistry GetBlockRegistry()
     }));
 
     DISCARD(out.RegisterBlock({
+        .Fmt = "True",
+        .Description = "True value",
+        .OpCode = "true",
+        .Category = BlockCategory::Logic,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            DISCARD(b);
+            return Bool(true);
+        },
+        .ReturnType = VAL_BOOL,
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "False",
+        .Description = "False value",
+        .OpCode = "false",
+        .Category = BlockCategory::Logic,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            DISCARD(b);
+            return Bool(false);
+        },
+        .ReturnType = VAL_BOOL,
+    }));
+
+    DISCARD(out.RegisterBlock({
         .Fmt = "{number:lhs=1} < {number:rhs=2}",
         .Description = "Checks if a number is less than another number",
         .OpCode = "lt",
@@ -205,7 +235,8 @@ BlockRegistry GetBlockRegistry()
             return Less(
                 c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
                 c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -217,7 +248,8 @@ BlockRegistry GetBlockRegistry()
             return Greater(
                 c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
                 c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -229,7 +261,8 @@ BlockRegistry GetBlockRegistry()
             return LessEqual(
                 c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
                 c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -241,7 +274,8 @@ BlockRegistry GetBlockRegistry()
             return GreaterEqual(
                 c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
                 c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -253,11 +287,12 @@ BlockRegistry GetBlockRegistry()
             return Equal(
                 c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
                 c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
-        .Fmt = "{number:lhs=1} = {number:rhs=2}",
+        .Fmt = "{number:lhs=1} != {number:rhs=2}",
         .Description = "Checks if a number is equal to another number",
         .OpCode = "neq",
         .Category = BlockCategory::Logic,
@@ -265,7 +300,8 @@ BlockRegistry GetBlockRegistry()
             return NotEqual(
                 c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
                 c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -275,7 +311,8 @@ BlockRegistry GetBlockRegistry()
         .Category = BlockCategory::Logic,
         .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
             return Not(c.ResolveArg(b.Args.at("value"), VAL_BOOL));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -287,7 +324,8 @@ BlockRegistry GetBlockRegistry()
             return And(
                 c.ResolveArg(b.Args.at("lhs"), VAL_BOOL),
                 c.ResolveArg(b.Args.at("rhs"), VAL_BOOL));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
     DISCARD(out.RegisterBlock({
@@ -299,7 +337,8 @@ BlockRegistry GetBlockRegistry()
             return Or(
                     c.ResolveArg(b.Args.at("lhs"), VAL_BOOL),
                     c.ResolveArg(b.Args.at("rhs"), VAL_BOOL));
-        }
+        },
+        .ReturnType = VAL_BOOL,
     }));
 
      DISCARD(out.RegisterBlock({
@@ -360,5 +399,42 @@ BlockRegistry GetBlockRegistry()
         }
     }));
 
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Exit {int:code=0}",
+        .Description = "Exits the program with the specified exit code",
+        .OpCode = "exit",
+        .Category = BlockCategory::ControlFlow,
+        .Shape = BlockShape::Cap,
+        .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Exit(c.ResolveArg(b.Args.at("code"), VAL_INT));
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Get {any:$var}",
+        .Description = "Gets the value of a variable",
+        .OpCode = "get",
+        .Category = BlockCategory::Variable,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
+            return Var(varRef ? varRef->Name : "", VAL_ANY);
+        },
+        .ReturnType = VAL_ANY
+    }));
+
+    // DISCARD(out.RegisterBlock({
+    //     .Fmt = "Set {any:$var} to {any:value=0}",
+    //     .Description = "Sets the value of a variable",
+    //     .OpCode = "set",
+    //     .Category = BlockCategory::Variable,
+    //     .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
+    //         const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
+    //         return Assign(
+    //                 varRef ? varRef->Name : "",
+    //                 c.ResolveArg(b.Args.at("value"), VAL_ANY));
+    //     }
+    // }));
+    //
     return out;
 }

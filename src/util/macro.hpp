@@ -4,12 +4,19 @@
 
 #define DISCARD(expr) static_cast<void>(expr)
 
-#define FAIL_COND_V_MSG(cond, v, msg, ...)                       \
-    do {                                                         \
-        if ((cond)) {                                            \
-            GlobalLogger.Error((msg), ##__VA_ARGS__);            \
-            return (v);                                          \
-        }                                                        \
+#define FAIL_COND_V(cond, v) \
+    do { \
+        if ((cond)) { \
+            return (v); \
+        } \
+    } while(0)
+
+#define FAIL_COND_V_MSG(cond, v, msg, ...) \
+    do { \
+        if ((cond)) { \
+            GlobalLogger.Error((msg), ##__VA_ARGS__); \
+            return (v); \
+        } \
     } while (0)
 
 #define CONCAT(a, b) CONCAT_IMPL(a, b)

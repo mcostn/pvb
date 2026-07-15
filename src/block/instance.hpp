@@ -1,9 +1,12 @@
 #pragma once
 
 #include <memory>
+#include <variant>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "codegen/frontend.hpp"
 
 struct BlockInstance;
 

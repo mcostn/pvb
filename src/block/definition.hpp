@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 #include "block/converter.hpp"
 #include "util/error.hpp"
@@ -29,6 +30,16 @@ enum class BlockCategory
     ControlFlow,
     Math,
     Logic,
+    Variable,
+};
+
+enum class BlockShape
+{
+    Unknown,
+    Chain,
+    Hat,
+    Cap,
+    Reporter,
 };
 
 struct BlockDefinition
@@ -40,10 +51,13 @@ struct BlockDefinition
 
     BlockSchema Schema {};
 
+    BlockShape Shape = BlockShape::Unknown;
     BlockConverter::StmtBuilder StmtBuilder = nullptr;
     BlockConverter::ExprBuilder ExprBuilder = nullptr;
+    Value ReturnType = VAL_NONE;
+
+    std::unordered_map<std::string, LiteralValue> DefaultValues {};
 };
 
 Error GenerateBlockSchema(BlockDefinition &def);
-std::string BlockSchemaToString(const BlockSchema &schema);
 std::vector<std::string> BlockSchemaBodySlots(const BlockSchema &schema);
