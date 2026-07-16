@@ -56,6 +56,8 @@ struct BlockLayout
     std::vector<RowLayout> Rows;
 };
 
+class Canvas;
+
 struct VisualBlock;
 using VisualArg = std::variant<
     LiteralValue,
@@ -95,6 +97,7 @@ ImVec2 BottomSnap(const VisualBlock &b);
 inline ImU32 CategoryColor(BlockCategory category)
 {
     switch (category) {
+        case BlockCategory::Event:       return IM_COL32(64, 64, 72, 255);
         case BlockCategory::Console:     return IM_COL32(38, 143, 130, 255);
         case BlockCategory::ControlFlow: return IM_COL32(191, 121, 36, 255);
         case BlockCategory::Math:        return IM_COL32(53, 105, 173, 255);
@@ -134,7 +137,8 @@ void DrawBlockLayout(
         ImFont *font,
         float fontSize,
         ImU32 textColor,
-        bool interactive);
+        bool interactive,
+        Canvas &canvas);
 
 VisualBlock *GetPluggedArg(VisualBlock &block, const std::string &key);
 

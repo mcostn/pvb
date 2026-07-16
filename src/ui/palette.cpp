@@ -41,7 +41,8 @@ void BlockPalette::DrawBlockPreview(
         ImGui::GetFont(),
         ImGui::GetFontSize(),
         IM_COL32(255,255,255,255),
-        false);
+        false,
+        canvas);
 
 
     ImGui::SetCursorScreenPos(start);
@@ -57,9 +58,31 @@ void BlockPalette::DrawBlockPreview(
     ImGui::PopID();
 }
 
+void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
+{
+    ImGui::TextUnformatted("Variables");
+
+    float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
+
+    if (ImGui::Button("Make a Variable", ImVec2(fieldWidth, 0.0f))) {
+        canvas.RequestVariableCreation(nullptr, "", VAL_ANY);
+    }
+
+    ImGui::Separator();
+
+    for (auto &def : registry.Definitions) {
+        if (def.Category != BlockCategory::Variable)
+            continue;
+        if (!Matches(def))
+            continue;
+
+        DrawBlockPreview(canvas, def);
+    }
+}
+
 void BlockPalette::Draw(
     Canvas &canvas,
-    const BlockRegistry &registry,
+    BlockRegistry &registry,
     const char *id,
     float height)
 {
@@ -69,6 +92,8 @@ void BlockPalette::Draw(
     ImGui::Separator();
 
     for (auto &def : registry.Definitions) {
+        if (def.Category == BlockCategory::Variable)
+            continue;
         if (!Matches(def))
             continue;
 
@@ -77,6 +102,8 @@ void BlockPalette::Draw(
             def);
     }
 
+    ImGui::Separator();
+    DrawVariableSection(canvas, registry);
 
     ImGui::EndChild();
 }

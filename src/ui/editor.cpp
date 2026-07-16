@@ -11,12 +11,14 @@ Editor::Editor(BlockRegistry registry)
     : Registry(std::move(registry))
 {
     CanvasView.EditorRef = this;
+    CanvasView.Registry = &Registry;
 }
 
 
 void Editor::Draw()
 {
     DrawMenuBar();
+    DrawProjectSettingsPopup();
 
     ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -31,18 +33,45 @@ void Editor::Draw()
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    float height = ImGui::GetContentRegionAvail().y;
-    Palette.Draw(CanvasView, Registry, "palette", height);
+    if (ShowPalette) {
+        float height = ImGui::GetContentRegionAvail().y;
+        Palette.Draw(CanvasView, Registry, "palette", height);
+        ImGui::SameLine();
+    }
 
-    ImGui::SameLine();
+    if (ShowCodeView) {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
 
-    CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+        constexpr ImGuiTableFlags flags =
+            ImGuiTableFlags_Resizable |
+            ImGuiTableFlags_BordersInnerV;
+
+        if (ImGui::BeginTable("##canvas_code_split", 2, flags, avail)) {
+            ImGui::TableSetupColumn("Canvas", ImGuiTableColumnFlags_WidthStretch, 0.65f);
+            ImGui::TableSetupColumn("Code", ImGuiTableColumnFlags_WidthStretch, 0.35f);
+
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, avail.y);
+
+            ImGui::TableSetColumnIndex(0);
+            CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+
+            ImGui::TableSetColumnIndex(1);
+            Code.Draw("codeview", ImGui::GetContentRegionAvail());
+
+            ImGui::EndTable();
+        }
+    } else {
+        CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+    }
 
     ImGui::End();
 
     DrawFileDialog();
 
-    HandlePaletteDrag();
+    if (ShowPalette) {
+        HandlePaletteDrag();
+    }
+
     DrawNotifications();
 
     if (CanvasView.ShowDebugWindow) {
@@ -55,7 +84,6 @@ void Editor::DrawMenuBar()
 {
     if (!ImGui::BeginMainMenuBar())
         return;
-
 
     if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("Save")) {
@@ -101,6 +129,7 @@ void Editor::DrawMenuBar()
 
     if (ImGui::BeginMenu("Build")) {
         if (ImGui::MenuItem("Compile")) {
+            GenerateCode();
         }
 
         if (ImGui::MenuItem("Run")) {
@@ -112,14 +141,50 @@ void Editor::DrawMenuBar()
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("View")) {
-        if (ImGui::MenuItem("Generated Code")) {
+    if (ImGui::BeginMenu("Project")) {
+        if (ImGui::MenuItem("Settings...")) {
+            ShowProjectSettings = true;
         }
 
         ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("View")) {
+        ImGui::MenuItem("Palette", nullptr, &ShowPalette);
+        ImGui::MenuItem("Generated Code", nullptr, &ShowCodeView);
+
+        ImGui::EndMenu();
+    }
+
     ImGui::EndMainMenuBar();
+}
+
+void Editor::DrawProjectSettingsPopup()
+{
+    if (ShowProjectSettings) {
+        ImGui::OpenPopup("Project Settings");
+        ShowProjectSettings = false;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(360, 0), ImGuiCond_Appearing);
+
+    if (!ImGui::BeginPopupModal("Project Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    ImGui::InputText("Name", &ProjectName);
+    ImGui::InputTextMultiline("Description", &ProjectDescription, ImVec2(320.0f, 80.0f));
+
+    static const char *kLanguageNames[] = { "C++", "Python" };
+    int languageIndex = (Language == CodeLanguage::Cpp) ? 0 : 1;
+    if (ImGui::Combo("Language", &languageIndex, kLanguageNames, IM_ARRAYSIZE(kLanguageNames)))
+        Language = (languageIndex == 0) ? CodeLanguage::Cpp : CodeLanguage::Python;
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Close", ImVec2(120, 0)))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
 }
 
 void Editor::BeginPaletteDrag(const BlockDefinition &def)
@@ -163,7 +228,8 @@ void Editor::HandlePaletteDrag()
         ImGui::GetFont(),
         ImGui::GetFontSize(),
         IM_COL32(255,255,255,220),
-        false);
+        false,
+        CanvasView);
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         if (CanvasView.Hovered) {
@@ -177,7 +243,8 @@ void Editor::HandlePaletteDrag()
 
 void Editor::SaveTo(const std::string& path)
 {
-    Error err = SaveProject(CanvasView, path, ProjectName);
+    ProjectSettings settings { ProjectName, ProjectDescription, Language };
+    Error err = SaveProject(CanvasView, Registry, path, settings);
 
     if (err == Error::Ok) {
         ProjectPath = path;
@@ -189,10 +256,14 @@ void Editor::SaveTo(const std::string& path)
 
 void Editor::LoadFrom(const std::string& path)
 {
-    Error err = LoadProject(CanvasView, path);
+    ProjectSettings settings;
+    Error err = LoadProject(CanvasView, Registry, path, settings);
 
     if (err == Error::Ok) {
         ProjectPath = path;
+        ProjectName = settings.Name;
+        ProjectDescription = settings.Description;
+        Language = settings.Language;
         Notify("Loaded project: " + ProjectPath);
     } else {
         Notify("Load failed: " + std::string(to_string(err)), true);
@@ -241,6 +312,18 @@ void Editor::ShowFileDialog(
             title,
             extension,
             config);
+}
+
+void Editor::GenerateCode()
+{
+    Error err = Code.Generate(CanvasView, Registry, Language);
+
+    if (err == Error::Ok) {
+        ShowCodeView = true;
+        Notify("Code generated successfully");
+    } else {
+        Notify("Code generation failed: " + std::string(to_string(err)), true);
+    }
 }
 
 void Editor::Notify(const std::string &text, bool error)

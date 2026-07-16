@@ -229,7 +229,6 @@ Error PythonEmitter::Visit(const WhileStmt &stmt)
 
 Error PythonEmitter::Visit(const ForStmt &stmt)
 {
-    // init
     if (stmt.Init) {
         TRY(Emit(*stmt.Init));
         Out() << "\n";

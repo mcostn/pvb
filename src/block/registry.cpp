@@ -1,5 +1,8 @@
 #include "block/registry.hpp"
 
+std::string VarGetOpCode(const std::string &name) { return "var_get_" + name; }
+std::string VarSetOpCode(const std::string &name) { return "var_set_" + name; }
+
 Error BlockRegistry::RegisterBlock(BlockDefinition def)
 {
     for (const auto &d: Definitions) {
@@ -9,11 +12,6 @@ Error BlockRegistry::RegisterBlock(BlockDefinition def)
         }
     }
 
-    FAIL_COND_V_MSG(
-            !def.StmtBuilder && !def.ExprBuilder,
-            Error::BlockInvalidDefinition,
-            "Block '{}' has no builder",
-            def.OpCode);
     FAIL_COND_V_MSG(
             def.StmtBuilder && def.ExprBuilder,
             Error::BlockInvalidDefinition,
@@ -62,10 +60,84 @@ Error BlockRegistry::RegisterBlock(BlockDefinition def)
     return Error::Ok;
 }
 
+bool BlockRegistry::HasVariable(const std::string &name) const
+{
+    for (const auto &v : Variables)
+        if (v.Name == name)
+            return true;
+
+    return false;
+}
+
+Error BlockRegistry::AddVariable(const std::string &name, Value type)
+{
+    FAIL_COND_V_MSG(
+            name.empty(),
+            Error::BlockInvalidDefinition,
+            "Variable name cannot be empty");
+
+    FAIL_COND_V_MSG(
+            HasVariable(name),
+            Error::BlockAlreadyExists,
+            "Variable '{}' already exists",
+            name);
+
+    std::string typeStr;
+    switch (type) {
+        case VAL_INT:    typeStr = "int";    break;
+        case VAL_FLOAT:  typeStr = "float";  break;
+        case VAL_BOOL:   typeStr = "bool";   break;
+        case VAL_STRING: typeStr = "string"; break;
+        default:
+            GlobalLogger.Error("Variable '{}' has an unsupported type", name);
+            return Error::BlockInvalidDefinition;
+    }
+
+    TRY(RegisterBlock({
+        .Fmt = name,
+        .Description = "Gets the value of '" + name + "'",
+        .OpCode = VarGetOpCode(name),
+        .Category = BlockCategory::Variable,
+        .ExprBuilder = [name, type](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            DISCARD(b);
+            return Var(name, type);
+        },
+        .ReturnType = type,
+    }));
+
+    Error err = RegisterBlock({
+        .Fmt = "Set " + name + " to {" + typeStr + ":value=}",
+        .Description = "Sets the value of '" + name + "'",
+        .OpCode = VarSetOpCode(name),
+        .Category = BlockCategory::Variable,
+        .StmtBuilder = [name, type](BlockConverter &c, const BlockInstance &b) {
+            return ExprStatement(Assign(name, c.ResolveArg(b.Args.at("value"), type)));
+        },
+    });
+
+    if (err != Error::Ok) {
+        Definitions.pop_back();
+        Converter.ExprBuilders.erase(VarGetOpCode(name));
+        return err;
+    }
+
+    Variables.push_back({ name, type });
+
+    return Error::Ok;
+}
 
 BlockRegistry GetBlockRegistry()
 {
     BlockRegistry out;
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Main",
+        .Description = "Entry point of the program",
+        .OpCode = "main",
+        .Category = BlockCategory::Event,
+        .Shape = BlockShape::Hat,
+    }));
 
     DISCARD(out.RegisterBlock({
         .Fmt = "Print {any:out='Hello World'}",
@@ -96,9 +168,16 @@ BlockRegistry GetBlockRegistry()
         .Description = "Reads from console into variable",
         .OpCode = "read",
         .Category = BlockCategory::Console,
-        // .StmtBuilder = [](BlockConverter &, const BlockInstance &b) {
-        //     return Read(b.Args.at("var"));
-        // };
+        .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
+            std::string varName = varRef ? varRef->Name : "";
+
+             auto varExpr = std::make_unique<VariableExpr>(VAL_ANY);
+             varExpr->Name = varName;
+
+            return Read(std::move(varExpr));
+        }
     }));
 
     DISCARD(out.RegisterBlock({
@@ -410,31 +489,5 @@ BlockRegistry GetBlockRegistry()
         }
     }));
 
-    DISCARD(out.RegisterBlock({
-        .Fmt = "Get {any:$var}",
-        .Description = "Gets the value of a variable",
-        .OpCode = "get",
-        .Category = BlockCategory::Variable,
-        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
-            DISCARD(c);
-            const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
-            return Var(varRef ? varRef->Name : "", VAL_ANY);
-        },
-        .ReturnType = VAL_ANY
-    }));
-
-    // DISCARD(out.RegisterBlock({
-    //     .Fmt = "Set {any:$var} to {any:value=0}",
-    //     .Description = "Sets the value of a variable",
-    //     .OpCode = "set",
-    //     .Category = BlockCategory::Variable,
-    //     .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
-    //         const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
-    //         return Assign(
-    //                 varRef ? varRef->Name : "",
-    //                 c.ResolveArg(b.Args.at("value"), VAL_ANY));
-    //     }
-    // }));
-    //
     return out;
 }

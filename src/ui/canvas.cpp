@@ -1,8 +1,11 @@
 #include <cmath>
+#include <algorithm>
 
 #include "ui/canvas.hpp"
 #include "ui/const.hpp"
+#include "block/registry.hpp"
 #include "util/macro.hpp"
+#include "util/error.hpp"
 
 static BlockOutline BuildChainOutline(
         ImVec2 topLeft,
@@ -104,6 +107,9 @@ void Canvas::Draw(const char *strId, ImVec2 size)
 
     ImGui::EndChild();
     ImGui::PopID();
+
+    if (Registry)
+        DrawCreateVariablePopup(*Registry);
 }
 
 void Canvas::DrawGrid(ImDrawList *drawList, ImVec2 origin, ImVec2 size)
@@ -285,7 +291,8 @@ void Canvas::DrawBlock(ImDrawList *drawList, VisualBlock &block, ImVec2 origin)
             font,
             fontSize,
             IM_COL32(255, 255, 255, 255),
-            true);
+            true,
+            *this);
 }
 
 void Canvas::DrawChain(ImDrawList *drawList, VisualBlock *block, ImVec2 origin)
@@ -1018,7 +1025,6 @@ void Canvas::DrawComments(ImVec2 origin)
             ImGui::SetNextWindowPos(screenPos);
         ImGui::SetNextWindowSize(c.Size * Zoom, ImGuiCond_Always);
 
-        // Paper/ink palette for the note itself...
         ImGui::PushStyleColor(ImGuiCol_WindowBg,
                 IM_COL32(255,243,140,255));
         ImGui::PushStyleColor(ImGuiCol_TitleBg,
@@ -1067,4 +1073,116 @@ void Canvas::DrawComments(ImVec2 origin)
         ImGui::End();
         ImGui::PopStyleColor(8);
     }
+}
+
+void Canvas::RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType)
+{
+    VarCreateRequest.Requested = true;
+    VarCreateRequest.TargetBlock = targetBlock;
+    VarCreateRequest.TargetKey = targetKey;
+    VarCreateRequest.RequiredType = requiredType;
+
+    static const Value kTypesInOrder[] = { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_STRING };
+
+    NewVarTypeIndex = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (requiredType & kTypesInOrder[i]) {
+            NewVarTypeIndex = i;
+            break;
+        }
+    }
+
+    NewVarNameBuf[0] = '\0';
+    NewVarError.clear();
+}
+
+void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
+{
+    static const char *kAllNames[]  = { "Int", "Float", "Bool", "String" };
+    static const Value  kAllValues[] = { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_STRING };
+
+    if (VarCreateRequest.Requested) {
+        ImGui::OpenPopup("##canvas_create_variable_popup");
+        VarCreateRequest.Requested = false;
+    }
+
+    if (!ImGui::BeginPopup("##canvas_create_variable_popup"))
+        return;
+
+    const char *allowedNames[4];
+    Value allowedValues[4];
+    int allowedCount = 0;
+
+    for (int i = 0; i < 4; ++i) {
+        if (VarCreateRequest.RequiredType & kAllValues[i]) {
+            allowedNames[allowedCount] = kAllNames[i];
+            allowedValues[allowedCount] = kAllValues[i];
+            allowedCount++;
+        }
+    }
+
+    if (allowedCount == 0) {
+        allowedNames[0] = kAllNames[0];
+        allowedValues[0] = kAllValues[0];
+        allowedCount = 1;
+    }
+
+    NewVarTypeIndex = std::clamp(NewVarTypeIndex, 0, allowedCount - 1);
+
+    ImGui::TextUnformatted("New Variable");
+    ImGui::Separator();
+
+    constexpr float PopupFieldWidth = 220.0f;
+
+    ImGui::SetNextItemWidth(PopupFieldWidth);
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere(0);
+    bool enterPressed = ImGui::InputTextWithHint(
+            "##new_var_name",
+            "name",
+            NewVarNameBuf,
+            sizeof(NewVarNameBuf),
+            ImGuiInputTextFlags_EnterReturnsTrue);
+
+    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::Combo("##new_var_type", &NewVarTypeIndex, allowedNames, allowedCount);
+
+    if (!NewVarError.empty()) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", NewVarError.c_str());
+        ImGui::PopTextWrapPos();
+    }
+
+    bool createClicked = ImGui::Button("Create", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    ImGui::SameLine();
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+
+    if (createClicked || enterPressed) {
+        std::string name(NewVarNameBuf);
+        Value type = allowedValues[NewVarTypeIndex];
+
+        Error err = registry.AddVariable(name, type);
+
+        if (err == Error::Ok) {
+            if (VarCreateRequest.TargetBlock && !VarCreateRequest.TargetKey.empty())
+                VarCreateRequest.TargetBlock->Args[VarCreateRequest.TargetKey] = VisualArg{ VariableRef{ name } };
+
+            NewVarError.clear();
+            NewVarNameBuf[0] = '\0';
+            VarCreateRequest = PendingVariableCreate{};
+            ImGui::CloseCurrentPopup();
+        } else if (err == Error::BlockAlreadyExists) {
+            NewVarError = "A variable named '" + name + "' already exists";
+        } else {
+            NewVarError = "Couldn't create variable '" + name + "'";
+        }
+    }
+
+    if (cancelClicked) {
+        NewVarError.clear();
+        VarCreateRequest = PendingVariableCreate{};
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
 }

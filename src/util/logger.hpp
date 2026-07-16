@@ -46,7 +46,6 @@ class Logger
             }
         }
 
-        // TODO: Create a macro that avois this repetition
         template <typename... Args>
         void Info(std::format_string<Args...> fmt, Args&&... args)
         {
@@ -82,7 +81,6 @@ class Logger
         LogLevel MinLevel;
 
     private:
-        // TODO: Delete in favour of a string table
         static constexpr std::string_view ToString(LogLevel level)
         {
             switch (level)

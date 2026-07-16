@@ -3,6 +3,7 @@
 #include "block/registry.hpp"
 #include "ui/canvas.hpp"
 #include "ui/palette.hpp"
+#include "ui/code_view.hpp"
 
 struct PaletteDragState
 {
@@ -26,6 +27,7 @@ public:
     void Draw();
     void DrawMenuBar();
 
+    bool ShowPalette = true;
     BlockPalette Palette;
     PaletteDragState Drag;
     void BeginPaletteDrag(const BlockDefinition &def);
@@ -36,9 +38,13 @@ public:
 
     std::string ProjectPath;
     std::string ProjectName;
+    std::string ProjectDescription;
 
     void SaveTo(const std::string& path);
     void LoadFrom(const std::string& path);
+
+    bool ShowProjectSettings = false;
+    void DrawProjectSettingsPopup();
 
     std::string ActiveDialog;
     std::function<void(const std::string&)> FileDialogCallback;
@@ -52,4 +58,9 @@ public:
     std::deque<EditorNotification> Notifications;
     void Notify(const std::string &text, bool error = false);
     void DrawNotifications();
+
+    CodeView Code;
+    CodeLanguage Language = CodeLanguage::Python;
+    bool ShowCodeView = false;
+    void GenerateCode();
 };

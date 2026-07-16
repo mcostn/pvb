@@ -15,6 +15,15 @@ enum class DeleteType
 };
 
 class Editor;
+class BlockRegistry;
+
+struct PendingVariableCreate
+{
+    bool Requested = false;
+    VisualBlock *TargetBlock = nullptr;
+    std::string TargetKey;
+    Value RequiredType = VAL_ANY;
+};
 
 struct CanvasComment
 {
@@ -75,6 +84,7 @@ public:
     void DrawDebugWindow();
 
     Editor *EditorRef = nullptr;
+    BlockRegistry *Registry = nullptr;
 
     ImVec2 Origin;
     bool Hovered = false;
@@ -82,6 +92,14 @@ public:
     u32 NextCommentId = 1;
     std::vector<CanvasComment> Comments;
     void DrawComments(ImVec2 origin);
+
+    PendingVariableCreate VarCreateRequest;
+    char NewVarNameBuf[64] = "";
+    int NewVarTypeIndex = 0;
+    std::string NewVarError;
+
+    void RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType);
+    void DrawCreateVariablePopup(BlockRegistry &registry);
 };
 
 BlockOutline BuildOutline(const VisualBlock &block, ImVec2 topLeft, float zoom);

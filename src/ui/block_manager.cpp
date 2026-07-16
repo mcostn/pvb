@@ -273,6 +273,10 @@ void BlockManager::AttachBefore(VisualBlock *parent, VisualBlock *child)
         return;
     if (!IsStatement(parent) || !IsStatement(child))
         return;
+    if (parent->Def && parent->Def->Shape == BlockShape::Hat)
+        return;
+    if (child->Def && child->Def->Shape == BlockShape::Hat)
+        return;
 
     Detach(child);
 
@@ -379,15 +383,24 @@ void BlockManager::AttachAfter(VisualBlock *parent, VisualBlock *child)
         return;
     if (!IsStatement(parent) || !IsStatement(child))
         return;
+    if (child->Def && child->Def->Shape == BlockShape::Hat)
+        return;
 
     Detach(child);
 
     Roots.erase(
-        std::remove(Roots.begin(), Roots.end(), child),
-        Roots.end());
+            std::remove(Roots.begin(), Roots.end(), child),
+            Roots.end());
+
+    VisualBlock *tail = FindTail(child);
+    VisualBlock *oldNext = parent->Next;
 
     parent->Next = child;
     child->Prev = parent;
+
+    tail->Next = oldNext;
+    if (oldNext)
+        oldNext->Prev = tail;
 }
 
 SnapResult BlockManager::FindSnapTarget(VisualBlock *dragging, float zoom)

@@ -6,6 +6,8 @@
 
 #include "ui/block.hpp"
 #include "ui/const.hpp"
+#include "ui/canvas.hpp"
+#include "block/registry.hpp"
 
 static std::vector<BlockRow> BuildRows(const BlockSchema &schema);
 static LiteralValue &GetLiteralArg(VisualBlock &block, const BlockSchemaItem &item);
@@ -32,7 +34,8 @@ static void DrawVarSlot(
     ImFont *font,
     float fontSize,
     ImU32 textColor,
-    bool interactive);
+    bool interactive,
+    Canvas &canvas);
 static void DrawInputSlot(
     ImDrawList *drawList,
     VisualBlock &block,
@@ -290,7 +293,8 @@ void DrawBlockLayout(
         ImFont *font,
         float fontSize,
         ImU32 textColor,
-        bool interactive)
+        bool interactive,
+        Canvas &canvas)
 {
     for (const RowLayout &row : block.Layout.Rows) {
         if (row.IsBody) {
@@ -308,7 +312,7 @@ void DrawBlockLayout(
                     break;
                 case BlockSchemaType::Var:
                     if (!GetPluggedArg(block, slot.Item->Name))
-                        DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive);
+                        DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive, canvas);
                     break;
                 default:
                     if (!GetPluggedArg(block, slot.Item->Name)) {
@@ -438,7 +442,7 @@ static std::string LiteralToEditString(const LiteralValue &lit)
             std::snprintf(buf, sizeof(buf), "%g", v);
             return std::string(buf);
         }
-        else                                           return std::to_string(v); // int
+        else return std::to_string(v); // int
     }, lit);
 }
 
@@ -498,18 +502,19 @@ static void DrawVarSlot(
     ImFont *font,
     float fontSize,
     ImU32 textColor,
-    bool interactive)
+    bool interactive,
+    Canvas &canvas)
 {
     VariableRef &ref = GetVariableArg(block, slot.Item->Name);
-    if (ref.Name.empty())
-        ref.Name = "my_var";
+
+    const char *displayName = ref.Name.empty() ? "(select)" : ref.Name.c_str();
 
     drawList->AddRectFilled(topLeft, topLeft + size, IM_COL32(255, 255, 255, 30));
     drawList->AddRect(topLeft, topLeft + size, IM_COL32(255, 255, 255, 90), 0.0f, 0, 1.0f);
 
-    ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, ref.Name.c_str());
+    ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, displayName);
     ImVec2 textPos(topLeft.x + (size.x - textSize.x) * 0.5f, topLeft.y + (size.y - textSize.y) * 0.5f);
-    drawList->AddText(font, fontSize, textPos, textColor, ref.Name.c_str());
+    drawList->AddText(font, fontSize, textPos, textColor, displayName);
 
     if (!interactive)
         return;
@@ -521,9 +526,32 @@ static void DrawVarSlot(
     if (ImGui::IsItemClicked())
         ImGui::OpenPopup("##var_popup");
     if (ImGui::BeginPopup("##var_popup")) {
-        if (ImGui::Selectable("my_var")) ref.Name = "my_var";
-        if (ImGui::Selectable("score"))  ref.Name = "score";
-        if (ImGui::Selectable("Create new...")) ref.Name = "new_var";
+        BlockRegistry *registry = canvas.Registry;
+        Value requiredType = slot.Item->ValueType;
+
+        bool anyShown = false;
+
+        if (registry) {
+            for (const VariableInfo &v : registry->Variables) {
+                if (!(requiredType & v.Type))
+                    continue;
+
+                anyShown = true;
+
+                bool selected = (v.Name == ref.Name);
+                if (ImGui::Selectable(v.Name.c_str(), selected))
+                    ref.Name = v.Name;
+            }
+        }
+
+        if (!anyShown)
+            ImGui::TextDisabled("No matching variables yet");
+
+        ImGui::Separator();
+
+        if (ImGui::Selectable("Create new..."))
+            canvas.RequestVariableCreation(&block, slot.Item->Name, requiredType);
+
         ImGui::EndPopup();
     }
     ImGui::PopID();

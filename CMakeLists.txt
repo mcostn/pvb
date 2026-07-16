@@ -30,6 +30,7 @@ add_library(imgui
     "vendor/imgui/backends/imgui_impl_glfw.cpp"
     "vendor/imgui/backends/imgui_impl_opengl3.cpp"
     "vendor/ImGuiFileDialog/ImGuiFileDialog.cpp"
+    "vendor/ImGuiColorTextEdit/TextEditor.cpp"
 )
 target_include_directories(imgui
     PUBLIC
@@ -37,6 +38,7 @@ target_include_directories(imgui
     "${CMAKE_SOURCE_DIR}/vendor/imgui/backends"
     "${CMAKE_SOURCE_DIR}/vendor/imgui/misc/cpp"
     "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog"
+    "${CMAKE_SOURCE_DIR}/vendor/ImGuiColorTextEdit"
 )
 find_package(OpenGL REQUIRED)
 target_link_libraries(
@@ -94,6 +96,7 @@ add_library(
     "src/ui/editor.cpp"
     "src/ui/project.cpp"
     "src/ui/app.cpp"
+    "src/ui/code_view.cpp"
 )
 target_link_libraries(
     ui

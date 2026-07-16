@@ -26,6 +26,7 @@ using BlockSchema = std::vector<BlockSchemaItem>;
 
 enum class BlockCategory
 {
+    Event,
     Console,
     ControlFlow,
     Math,

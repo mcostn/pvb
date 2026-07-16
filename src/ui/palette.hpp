@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "ui/canvas.hpp"
 #include "block/registry.hpp"
 
@@ -8,7 +10,7 @@ class BlockPalette
 public:
     void Draw(
             Canvas &canvas,
-            const BlockRegistry &registry,
+            BlockRegistry &registry,
             const char *id,
             float height);
 
@@ -20,4 +22,6 @@ public:
     void DrawBlockPreview(
         Canvas &canvas,
         const BlockDefinition &def);
+
+    void DrawVariableSection(Canvas &canvas, BlockRegistry &registry);
 };

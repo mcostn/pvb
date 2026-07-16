@@ -7,8 +7,7 @@
 #include "block/registry.hpp"
 #include "util/ini.hpp"
 
-static const BlockRegistry &CachedRegistry();
-static const BlockDefinition *FindBlockDefinition(const std::string &opcode);
+static const BlockDefinition *FindBlockDefinition(const BlockRegistry &registry, const std::string &opcode);
 
 static Error GetString(
     const IniFile &ini,
@@ -40,10 +39,17 @@ static Error TypedToArg(
 static std::pair<std::string, std::string> LiteralToTyped(const LiteralValue &lit);
 static void CollectBlocks(VisualBlock *head, std::vector<VisualBlock *> &out, std::unordered_set<VisualBlock *> &seen);
 
+static Error VariableTypeToString(Value type, std::string &out);
+static Error VariableTypeFromString(const std::string &str, Value &out);
+
+static Error CodeLanguageToString(CodeLanguage lang, std::string &out);
+static Error CodeLanguageFromString(const std::string &str, CodeLanguage &out);
+
 Error SaveProject(
         const Canvas &canvas,
+        const BlockRegistry &registry,
         const std::string &path,
-        const std::string &projectName)
+        const ProjectSettings &settings)
 {
     std::vector<VisualBlock*> blocks;
     std::unordered_set<VisualBlock*> seen;
@@ -57,7 +63,20 @@ Error SaveProject(
     ini.SetValue(
             "project",
             "name",
-            IniFile::Escape(projectName));
+            IniFile::Escape(settings.Name));
+
+    ini.SetValue(
+            "project",
+            "description",
+            IniFile::Escape(settings.Description));
+
+    std::string languageStr;
+    TRY(CodeLanguageToString(settings.Language, languageStr));
+
+    ini.SetValue(
+            "project",
+            "language",
+            languageStr);
 
     ini.SetValue(
             "project",
@@ -79,6 +98,11 @@ Error SaveProject(
             "root_count",
             std::to_string(canvas.Manager.Roots.size()));
 
+    ini.SetValue(
+            "project",
+            "variable_count",
+            std::to_string(registry.Variables.size()));
+
 
     std::ostringstream roots;
     for (size_t i = 0; i < canvas.Manager.Roots.size(); ++i) {
@@ -92,6 +116,19 @@ Error SaveProject(
             "project",
             "roots",
             roots.str());
+
+
+    // Variables
+    for (size_t i = 0; i < registry.Variables.size(); ++i) {
+        const VariableInfo &v = registry.Variables[i];
+        std::string section = "variable" + std::to_string(i);
+
+        ini.SetValue(section, "name", IniFile::Escape(v.Name));
+
+        std::string typeStr;
+        TRY(VariableTypeToString(v.Type, typeStr));
+        ini.SetValue(section, "type", typeStr);
+    }
 
 
     // Blocks
@@ -213,7 +250,9 @@ Error SaveProject(
 
 Error LoadProject(
         Canvas &canvas,
-        const std::string &path)
+        BlockRegistry &registry,
+        const std::string &path,
+        ProjectSettings &outSettings)
 {
     IniFile ini;
     TRY(IniFile::Load(path, ini));
@@ -237,9 +276,25 @@ Error LoadProject(
         "Unsupported project version '%s'",
         version.c_str());
 
+    std::string name;
+    TRY(GetString(ini, "project", "name", name));
+    outSettings.Name = IniFile::Unescape(name);
+
+    std::string description;
+    if (GetString(ini, "project", "description", description) == Error::Ok)
+        outSettings.Description = IniFile::Unescape(description);
+    else
+        outSettings.Description.clear();
+
+    std::string languageStr;
+    if (GetString(ini, "project", "language", languageStr) == Error::Ok)
+        DISCARD(CodeLanguageFromString(languageStr, outSettings.Language));
+    else
+        outSettings.Language = CodeLanguage::Python;
 
     u32 blockCount = 0;
     u32 commentCount = 0;
+    u32 variableCount = 0;
 
     TRY(GetU32(
         ini,
@@ -253,6 +308,12 @@ Error LoadProject(
         "comment_count",
         commentCount));
 
+    DISCARD(GetU32(
+        ini,
+        "project",
+        "variable_count",
+        variableCount));
+
     std::string rootsRaw;
     TRY(GetString(
         ini,
@@ -262,6 +323,35 @@ Error LoadProject(
 
     std::vector<u32> rootIds;
     TRY(ParseIdList(rootsRaw, rootIds));
+
+    // Variables
+    for (u32 i = 0; i < variableCount; ++i) {
+        std::string section = "variable" + std::to_string(i);
+
+        FAIL_COND_V_MSG(
+                !ini.HasSection(section),
+                Error::ProjectMissingSection,
+                "Missing [%s]",
+                section.c_str());
+
+        std::string name, typeStr;
+        TRY(GetString(ini, section, "name", name));
+        TRY(GetString(ini, section, "type", typeStr));
+        name = IniFile::Unescape(name);
+
+        Value type;
+        TRY(VariableTypeFromString(typeStr, type));
+
+        if (!registry.HasVariable(name)) {
+            Error err = registry.AddVariable(name, type);
+
+            FAIL_COND_V_MSG(
+                    err != Error::Ok,
+                    err,
+                    "Failed to recreate variable '%s'",
+                    name.c_str());
+        }
+    }
 
     // Blocks
     struct PendingBlock
@@ -299,7 +389,7 @@ Error LoadProject(
         TRY(GetString(ini, section, "opcode", opcode));
 
         opcode = IniFile::Unescape(opcode);
-        const BlockDefinition *def = FindBlockDefinition(opcode);
+        const BlockDefinition *def = FindBlockDefinition(registry, opcode);
 
         FAIL_COND_V_MSG(
                 !def,
@@ -517,7 +607,6 @@ Error LoadProject(
         newComments.push_back(std::move(c));
     }
 
-    // Commit only after everything succeeded
     canvas.Manager.Blocks = std::move(newBlocks);
     canvas.Manager.Roots = std::move(newRoots);
     canvas.Manager.NextId = highestId + 1;
@@ -528,19 +617,63 @@ Error LoadProject(
     return Error::Ok;
 }
 
-static const BlockRegistry &CachedRegistry()
+static const BlockDefinition *FindBlockDefinition(const BlockRegistry &registry, const std::string &opcode)
 {
-    static BlockRegistry registry = GetBlockRegistry();
-    return registry;
-}
-
-static const BlockDefinition *FindBlockDefinition(const std::string &opcode)
-{
-    for (const BlockDefinition &def : CachedRegistry().Definitions) {
+    for (const BlockDefinition &def : registry.Definitions) {
         if (def.OpCode == opcode)
             return &def;
     }
     return nullptr;
+}
+
+static Error VariableTypeToString(Value type, std::string &out)
+{
+    switch (type) {
+        case VAL_INT:    out = "int";    return Error::Ok;
+        case VAL_FLOAT:  out = "float";  return Error::Ok;
+        case VAL_BOOL:   out = "bool";   return Error::Ok;
+        case VAL_STRING: out = "string"; return Error::Ok;
+        default:
+            GlobalLogger.Error("Cannot save variable with unsupported type");
+            return Error::ProjectInvalidData;
+    }
+}
+
+static Error VariableTypeFromString(const std::string &str, Value &out)
+{
+    if (str == "int")         { out = VAL_INT;    return Error::Ok; }
+    if (str == "float")       { out = VAL_FLOAT;  return Error::Ok; }
+    if (str == "bool")        { out = VAL_BOOL;   return Error::Ok; }
+    if (str == "string")      { out = VAL_STRING; return Error::Ok; }
+
+    GlobalLogger.Error(
+            "Unknown variable type '%s'",
+            str.c_str());
+
+    return Error::ProjectInvalidData;
+}
+
+static Error CodeLanguageToString(CodeLanguage lang, std::string &out)
+{
+    switch (lang) {
+        case CodeLanguage::Cpp:    out = "cpp";    return Error::Ok;
+        case CodeLanguage::Python: out = "python"; return Error::Ok;
+    }
+
+    GlobalLogger.Error("Cannot save project with unsupported language");
+    return Error::ProjectInvalidData;
+}
+
+static Error CodeLanguageFromString(const std::string &str, CodeLanguage &out)
+{
+    if (str == "cpp")    { out = CodeLanguage::Cpp;    return Error::Ok; }
+    if (str == "python") { out = CodeLanguage::Python; return Error::Ok; }
+
+    GlobalLogger.Error(
+            "Unknown project language '%s'",
+            str.c_str());
+
+    return Error::ProjectInvalidData;
 }
 
 static Error GetString(

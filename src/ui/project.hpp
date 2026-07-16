@@ -4,11 +4,23 @@
 
 #include "util/error.hpp"
 #include "ui/canvas.hpp"
+#include "ui/code_view.hpp"
+#include "block/registry.hpp"
+
+struct ProjectSettings
+{
+    std::string Name;
+    std::string Description;
+    CodeLanguage Language = CodeLanguage::Python;
+};
 
 Error SaveProject(
         const Canvas &canvas,
+        const BlockRegistry &registry,
         const std::string &path,
-        const std::string &projectName);
+        const ProjectSettings &settings);
 Error LoadProject(
         Canvas &canvas,
-        const std::string &path);
+        BlockRegistry &registry,
+        const std::string &path,
+        ProjectSettings &outSettings);
