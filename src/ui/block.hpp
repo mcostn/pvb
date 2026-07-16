@@ -124,6 +124,7 @@ public:
 
     void Fill(ImDrawList *dl, ImU32 color) const;
     void Stroke(ImDrawList *dl, ImU32 color, float thickness) const;
+    void StrokeOpen(ImDrawList *dl, ImU32 color, float thickness) const;
 
     std::vector<ImVec2> Pts;
 };

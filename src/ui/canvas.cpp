@@ -42,6 +42,13 @@ static BlockOutline BuildBooleanOutline(
         ImVec2 topLeft,
         ImVec2 size);
 
+static void DrawStatementSnapPreview(
+    ImDrawList* drawList,
+    ImVec2 pos,
+    float width,
+    float zoom,
+    ImU32 color);
+
 std::unique_ptr<BlockInstance> CloneInstance(const BlockInstance &src)
 {
     auto copy = std::make_unique<BlockInstance>();
@@ -469,27 +476,31 @@ void Canvas::DrawSnapPreview(ImDrawList *drawList, ImVec2 origin)
 
     switch (CurrentSnap.Type) {
         case SnapType::Append: {
-            ImVec2 bl = WorldToScreen(target.Pos + ImVec2(0.0f, target.Size.y), origin);
-            ImVec2 br = WorldToScreen(target.Pos + ImVec2(target.Size.x, target.Size.y), origin);
+           ImVec2 p = WorldToScreen(
+                   target.Pos + ImVec2(0.0f, target.Size.y),
+                   origin);
 
-            drawList->AddRectFilled(
-                    ImVec2(bl.x, bl.y - barThickness * 0.5f),
-                    ImVec2(br.x, br.y + barThickness * 0.5f),
-                    kSnapColor,
-                    barThickness * 0.5f);
-            break;
+           DrawStatementSnapPreview(
+                   drawList,
+                   p,
+                   target.Size.x * Zoom,
+                   Zoom,
+                   kSnapColor);
+           break;
         }
 
         case SnapType::Prepend: {
-            ImVec2 tl = WorldToScreen(target.Pos, origin);
-            ImVec2 tr = WorldToScreen(target.Pos + ImVec2(target.Size.x, 0.0f), origin);
+           ImVec2 p = WorldToScreen(
+                   target.Pos,
+                   origin);
 
-            drawList->AddRectFilled(
-                    ImVec2(tl.x, tl.y - barThickness * 0.5f),
-                    ImVec2(tr.x, tr.y + barThickness * 0.5f),
-                    kSnapColor,
-                    barThickness * 0.5f);
-            break;
+           DrawStatementSnapPreview(
+                   drawList,
+                   p,
+                   target.Size.x * Zoom,
+                   Zoom,
+                   kSnapColor);
+           break;
         }
 
         case SnapType::EnterBody: {
@@ -1185,4 +1196,25 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
     }
 
     ImGui::EndPopup();
+}
+
+static void DrawStatementSnapPreview(
+    ImDrawList* drawList,
+    ImVec2 pos,
+    float width,
+    float zoom,
+    ImU32 color)
+{
+    const float notchInset = 14.0f * zoom;
+    const float notchWidth = 22.0f * zoom;
+    const float notchDepth = 6.0f * zoom;
+
+    BlockOutline outline(pos + ImVec2(width, 0));
+
+    outline
+        .Right(-(width - notchInset - notchWidth))
+        .Tab(-notchWidth, notchDepth)
+        .Right(-notchInset);
+
+    outline.StrokeOpen(drawList, color, 3.0f * zoom);
 }

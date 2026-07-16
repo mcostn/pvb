@@ -67,7 +67,7 @@ bool IsStatement(const VisualBlock *b)
 ImVec2 TopSnap(const VisualBlock &b)
 {
     return {
-        b.Pos.x + b.Size.x * 0.5f,
+        b.Pos.x,
         b.Pos.y
     };
 }
@@ -75,7 +75,7 @@ ImVec2 TopSnap(const VisualBlock &b)
 ImVec2 BottomSnap(const VisualBlock &b)
 {
     return {
-        b.Pos.x + b.Size.x * 0.5f,
+        b.Pos.x,
         b.Pos.y + b.Size.y
     };
 }
@@ -125,6 +125,16 @@ void BlockOutline::Stroke(ImDrawList *dl, ImU32 color, float thickness) const
     dl->AddPolyline(Pts.data(), (int)Pts.size(), color, ImDrawFlags_Closed, thickness);
 }
 
+void BlockOutline::StrokeOpen(ImDrawList *dl, ImU32 color, float thickness) const
+{
+    dl->AddPolyline(
+        Pts.data(),
+        (int)Pts.size(),
+        color,
+        ImDrawFlags_None,
+        thickness);
+}
+
 BlockLayout ComputeBlockLayout(
         const BlockDefinition &def,
         VisualBlock &block,
@@ -150,13 +160,11 @@ BlockLayout ComputeBlockLayout(
             row.Height = 0.0f;
 
             // Measure every slot only.
-            for (const BlockSchemaItem *item : src.Tokens)
-            {
+            for (const BlockSchemaItem *item : src.Tokens) {
                 SlotLayout slot;
                 slot.Item = item;
 
-                switch (item->Type)
-                {
+                switch (item->Type) {
                     case BlockSchemaType::Text:
                         {
                             const char *label =
@@ -168,12 +176,9 @@ BlockLayout ComputeBlockLayout(
 
                     case BlockSchemaType::Var:
                         {
-                            if (VisualBlock *plugged = GetPluggedArg(block, item->Name))
-                            {
+                            if (VisualBlock *plugged = GetPluggedArg(block, item->Name)) {
                                 slot.Size = plugged->Size;
-                            }
-                            else
-                            {
+                            } else {
                                 slot.Size = ImVec2(
                                         m.VarSlotWidth,
                                         inlineRowHeight);
@@ -298,7 +303,7 @@ void DrawBlockLayout(
 {
     for (const RowLayout &row : block.Layout.Rows) {
         if (row.IsBody) {
-            continue; // reserved: BodyHeads chain renders here
+            continue;
         }
 
         for (size_t slotIndex = 0; slotIndex < row.Slots.size(); slotIndex++) {

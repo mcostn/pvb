@@ -273,10 +273,6 @@ void BlockManager::AttachBefore(VisualBlock *parent, VisualBlock *child)
         return;
     if (!IsStatement(parent) || !IsStatement(child))
         return;
-    if (parent->Def && parent->Def->Shape == BlockShape::Hat)
-        return;
-    if (child->Def && child->Def->Shape == BlockShape::Hat)
-        return;
 
     Detach(child);
 
@@ -311,8 +307,6 @@ void BlockManager::AttachToBody(VisualBlock *owner, const std::string &slot, Vis
 {
     if (!owner || !child)
         return;
-    if (!IsStatement(child))
-        return;
 
     Detach(child);
 
@@ -340,8 +334,6 @@ void BlockManager::AttachToBody(VisualBlock *owner, const std::string &slot, Vis
 void BlockManager::AttachToArg(VisualBlock *owner, const std::string &key, VisualBlock *child)
 {
     if (!owner || !child)
-        return;
-    if (!IsReporter(child))
         return;
 
     Detach(child);
@@ -381,10 +373,6 @@ void BlockManager::AttachAfter(VisualBlock *parent, VisualBlock *child)
 {
     if (!parent || !child)
         return;
-    if (!IsStatement(parent) || !IsStatement(child))
-        return;
-    if (child->Def && child->Def->Shape == BlockShape::Hat)
-        return;
 
     Detach(child);
 
@@ -406,7 +394,6 @@ void BlockManager::AttachAfter(VisualBlock *parent, VisualBlock *child)
 SnapResult BlockManager::FindSnapTarget(VisualBlock *dragging, float zoom)
 {
     SnapResult result;
-
     float bestDist = kSnapDistance / std::max(zoom, 0.01f);
 
     for (VisualBlock *root : Roots)
@@ -422,55 +409,31 @@ void BlockManager::SearchChainForSnap(VisualBlock *chain, VisualBlock *dragging,
             continue;
 
         if (IsStatement(block) && IsStatement(dragging)) {
-            float dx = BottomSnap(*block).x - TopSnap(*dragging).x;
-            float dy = BottomSnap(*block).y - TopSnap(*dragging).y;
-            float dist = std::sqrt(dx  *dx + dy  *dy);
+            if (dragging->Def->Shape != BlockShape::Hat &&
+                    block->Def->Shape != BlockShape::Cap) {
+                float dx = BottomSnap(*block).x - TopSnap(*dragging).x;
+                float dy = BottomSnap(*block).y - TopSnap(*dragging).y;
+                float dist = std::sqrt(dx * dx + dy * dy);
 
-            if (dist < bestDist) {
-                bestDist = dist;
-                result.Block = block;
-                result.Slot.clear();
-                result.Type = SnapType::Append;
-            }
-
-            dx = BottomSnap(*dragging).x - TopSnap(*block).x;
-            dy = BottomSnap(*dragging).y - TopSnap(*block).y;
-            dist = std::sqrt(dx  *dx + dy  *dy);
-
-            if (dist < bestDist) {
-                bestDist = dist;
-                result.Block = block;
-                result.Slot.clear();
-                result.Type = SnapType::Prepend;
-            }
-        }
-
-        if (IsStatement(dragging)) {
-            for (const RowLayout &row : block->Layout.Rows) {
-                if (!row.IsBody || !row.BodyItem)
-                    continue;
-
-                const std::string &slot = row.BodyItem->Name;
-                auto it = block->BodyRoots.find(slot);
-                VisualBlock *bodyHead = (it != block->BodyRoots.end()) ? it->second : nullptr;
-
-                if (bodyHead) {
-                    SearchChainForSnap(bodyHead, dragging, bestDist, result);
-                    continue;
-                }
-
-                ImVec2 opening(block->Pos.x + kBodyIndent + dragging->Size.x * 0.5f, block->Pos.y + row.Top);
-                ImVec2 dragTop = TopSnap(*dragging);
-
-                float odx = opening.x - dragTop.x;
-                float ody = opening.y - dragTop.y;
-                float odist = std::sqrt(odx  *odx + ody  *ody);
-
-                if (odist < bestDist) {
-                    bestDist = odist;
+                if (dist < bestDist) {
+                    bestDist = dist;
                     result.Block = block;
-                    result.Slot = slot;
-                    result.Type = SnapType::EnterBody;
+                    result.Slot.clear();
+                    result.Type = SnapType::Append;
+                }
+            }
+
+            if (dragging->Def->Shape != BlockShape::Cap &&
+                    block->Def->Shape != BlockShape::Hat) {
+                float dx = BottomSnap(*dragging).x - TopSnap(*block).x;
+                float dy = BottomSnap(*dragging).y - TopSnap(*block).y;
+                float dist = std::sqrt(dx * dx + dy * dy);
+
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    result.Block = block;
+                    result.Slot.clear();
+                    result.Type = SnapType::Prepend;
                 }
             }
         }
@@ -504,6 +467,36 @@ void BlockManager::SearchChainForSnap(VisualBlock *chain, VisualBlock *dragging,
                         result.Slot = argSlot.Item->Name;
                         result.Type = SnapType::EnterArg;
                     }
+                }
+            }
+        }
+
+        for (const RowLayout &row : block->Layout.Rows) {
+            if (!row.IsBody || !row.BodyItem) {
+                continue;
+            }
+
+            const std::string &slot = row.BodyItem->Name;
+            auto it = block->BodyRoots.find(slot);
+            VisualBlock *bodyHead = (it != block->BodyRoots.end()) ? it->second : nullptr;
+
+            if (bodyHead)
+                SearchChainForSnap(bodyHead, dragging, bestDist, result);
+
+            if (!bodyHead && IsStatement(dragging)) {
+                ImVec2 opening(block->Pos.x + kBodyIndent + dragging->Size.x * 0.5f,
+                        block->Pos.y + row.Top);
+                ImVec2 dragTop = TopSnap(*dragging);
+
+                float dx = opening.x - dragTop.x;
+                float dy = opening.y - dragTop.y;
+                float dist = std::sqrt(dx * dx + dy * dy);
+
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    result.Block = block;
+                    result.Slot = slot;
+                    result.Type = SnapType::EnterBody;
                 }
             }
         }
