@@ -241,13 +241,106 @@ BlockRegistry GetBlockRegistry()
     }));
 
     DISCARD(out.RegisterBlock({
+        .Fmt = "Sqrt {number:value=1}",
+        .Description = "Square root of a number",
+        .OpCode = "sqrt",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Sqrt,
+                c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Sin {number:value=1}",
+        .Description = "Sin of an angle in radians",
+        .OpCode = "sin",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Sin,
+                c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Cos {number:value=1}",
+        .Description = "Cos of an angle in radians",
+        .OpCode = "cos",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Cos,
+                c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Tan {number:value=1}",
+        .Description = "Tan of an angle in radians",
+        .OpCode = "tan",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Tan,
+                c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Atan {number:value=1}",
+        .Description = "Atan of an angle in radians",
+        .OpCode = "atan",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Atan,
+                c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Max {number:lhs=1} {number:rhs=2}",
+        .Description = "Maximum between 2 numbers",
+        .OpCode = "max",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Max,
+                c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
+                c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Min {number:lhs=1} {number:rhs=2}",
+        .Description = "Minimum between 2 numbers",
+        .OpCode = "min",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Min,
+                c.ResolveArg(b.Args.at("lhs"), VAL_NUMBER),
+                c.ResolveArg(b.Args.at("rhs"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
         .Fmt = "Round {number:value=0.5}",
         .Description = "Rounds the number",
         .OpCode = "round",
         .Category = BlockCategory::Math,
         .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
             return Call(
-                "round",
+                Builtin::Round,
                 c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
             );
         }
@@ -260,20 +353,33 @@ BlockRegistry GetBlockRegistry()
         .Category = BlockCategory::Math,
         .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
             return Call(
-                "abs",
+                Builtin::Abs,
                 c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
             );
         }
     }));
 
     DISCARD(out.RegisterBlock({
-        .Fmt = "Sqrt {number:value=1}",
-        .Description = "Square root of a number",
-        .OpCode = "sqrt",
+        .Fmt = "Floor {number:value=1}",
+        .Description = "Floor of a number",
+        .OpCode = "floor",
         .Category = BlockCategory::Math,
         .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
             return Call(
-                "sqrt",
+                Builtin::Floor,
+                c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Ceil {number:value=1}",
+        .Description = "Floor of a number",
+        .OpCode = "ceil",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Ceil,
                 c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
             );
         }
