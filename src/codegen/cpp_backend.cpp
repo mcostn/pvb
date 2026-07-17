@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "codegen/cpp_backend.hpp"
 #include "util/logger.hpp"
 
