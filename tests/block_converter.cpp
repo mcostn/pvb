@@ -157,7 +157,7 @@ TEST(ConverterRound)
     auto expr = conv.ConvertExpr(block);
     ASSERT_AS(call, expr.get(), CallExpr, CallExpr);
 
-    EXPECT_EQ(call->Function, "round");
+    EXPECT(call->BuiltinKind == Builtin::Round);
     EXPECT_FLOAT(call->Args[0].get(), 2.5f);
 }
 
@@ -171,7 +171,7 @@ TEST(ConverterAbs)
     auto expr = conv.ConvertExpr(block);
     ASSERT_AS(call, expr.get(), CallExpr, CallExpr);
 
-    EXPECT_EQ(call->Function, "abs");
+    EXPECT(call->BuiltinKind == Builtin::Abs);
 }
 
 TEST(ConverterSqrt)
@@ -184,7 +184,7 @@ TEST(ConverterSqrt)
     auto expr = conv.ConvertExpr(block);
     ASSERT_AS(call, expr.get(), CallExpr, CallExpr);
 
-    EXPECT_EQ(call->Function, "sqrt");
+    EXPECT(call->BuiltinKind == Builtin::Sqrt);
 }
 
 TEST(ConverterLess)
