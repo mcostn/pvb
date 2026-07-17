@@ -1,1 +1,1 @@
-vim.opt.makeprg = "./build.sh"
+vim.opt.makeprg = "cmake --build build --parallel"
