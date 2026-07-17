@@ -128,6 +128,10 @@ void Editor::DrawMenuBar()
 
 
     if (ImGui::BeginMenu("Build")) {
+        if (ImGui::MenuItem("Generate Code")) {
+            GenerateCode();
+        }
+
         if (ImGui::MenuItem("Compile")) {
             GenerateCode();
         }
@@ -142,7 +146,7 @@ void Editor::DrawMenuBar()
     }
 
     if (ImGui::BeginMenu("Project")) {
-        if (ImGui::MenuItem("Settings...")) {
+        if (ImGui::MenuItem("Settings")) {
             ShowProjectSettings = true;
         }
 
@@ -152,6 +156,7 @@ void Editor::DrawMenuBar()
     if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Palette", nullptr, &ShowPalette);
         ImGui::MenuItem("Generated Code", nullptr, &ShowCodeView);
+        ImGui::MenuItem("Debug", nullptr, &CanvasView.ShowDebugWindow);
 
         ImGui::EndMenu();
     }

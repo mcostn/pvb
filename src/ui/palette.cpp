@@ -1,6 +1,7 @@
 #include "ui/palette.hpp"
 #include "ui/canvas.hpp"
 #include "ui/editor.hpp"
+#include "ui/custom_block.hpp"
 
 bool BlockPalette::Matches(const BlockDefinition &def) const
 {
@@ -80,6 +81,44 @@ void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
     }
 }
 
+void BlockPalette::DrawCustomSection(Canvas &canvas, BlockRegistry &registry)
+{
+    ImGui::TextUnformatted("My Blocks");
+
+    float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
+
+    if (ImGui::Button("Create a Block", ImVec2(fieldWidth, 0.0f))) {
+        canvas.RequestCustomBlockCreation();
+    }
+
+    ImGui::Separator();
+
+    for (auto &def : registry.Definitions) {
+        if (def.Category != BlockCategory::Custom)
+            continue;
+        if (!IsCustomCall(def))
+            continue;
+        if (!Matches(def))
+            continue;
+
+        DrawBlockPreview(canvas, def);
+
+        std::vector<const BlockDefinition *> params =
+            CustomBlockParamDefs(registry, CustomBlockName(def));
+
+        if (!params.empty()) {
+            ImGui::Indent(10.0f);
+            ImGui::TextDisabled("arguments:");
+
+            for (const BlockDefinition *paramDef : params)
+                DrawBlockPreview(canvas, *paramDef);
+
+            ImGui::Unindent(10.0f);
+            ImGui::Spacing();
+        }
+    }
+}
+
 void BlockPalette::Draw(
     Canvas &canvas,
     BlockRegistry &registry,
@@ -94,6 +133,8 @@ void BlockPalette::Draw(
     for (auto &def : registry.Definitions) {
         if (def.Category == BlockCategory::Variable)
             continue;
+        if (def.Category == BlockCategory::Custom)
+            continue;
         if (!Matches(def))
             continue;
 
@@ -104,6 +145,9 @@ void BlockPalette::Draw(
 
     ImGui::Separator();
     DrawVariableSection(canvas, registry);
+
+    ImGui::Separator();
+    DrawCustomSection(canvas, registry);
 
     ImGui::EndChild();
 }

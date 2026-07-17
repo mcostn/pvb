@@ -100,6 +100,21 @@ public:
 
     void RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType);
     void DrawCreateVariablePopup(BlockRegistry &registry);
+
+    struct CustomParamEdit
+    {
+        char NameBuf[64] = "";
+        int TypeIndex = 0;
+    };
+
+    bool CustomBlockCreateRequested = false;
+    char NewCustomNameBuf[64] = "";
+    char NewCustomDescBuf[256] = "";
+    std::vector<CustomParamEdit> NewCustomParams;
+    std::string NewCustomError;
+
+    void RequestCustomBlockCreation();
+    void DrawCreateCustomBlockPopup(BlockRegistry &registry);
 };
 
 BlockOutline BuildOutline(const VisualBlock &block, ImVec2 topLeft, float zoom);

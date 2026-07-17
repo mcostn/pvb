@@ -97,6 +97,7 @@ add_library(
     "src/ui/project.cpp"
     "src/ui/app.cpp"
     "src/ui/code_view.cpp"
+    "src/ui/custom_block.cpp"
 )
 target_link_libraries(
     ui

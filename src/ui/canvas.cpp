@@ -3,6 +3,7 @@
 
 #include "ui/canvas.hpp"
 #include "ui/const.hpp"
+#include "ui/custom_block.hpp"
 #include "block/registry.hpp"
 #include "util/macro.hpp"
 #include "util/error.hpp"
@@ -115,8 +116,10 @@ void Canvas::Draw(const char *strId, ImVec2 size)
     ImGui::EndChild();
     ImGui::PopID();
 
-    if (Registry)
+    if (Registry) {
         DrawCreateVariablePopup(*Registry);
+        DrawCreateCustomBlockPopup(*Registry);
+    }
 }
 
 void Canvas::DrawGrid(ImDrawList *drawList, ImVec2 origin, ImVec2 size)
@@ -1192,6 +1195,139 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
     if (cancelClicked) {
         NewVarError.clear();
         VarCreateRequest = PendingVariableCreate{};
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+}
+
+void Canvas::RequestCustomBlockCreation()
+{
+    CustomBlockCreateRequested = true;
+    NewCustomNameBuf[0] = '\0';
+    NewCustomDescBuf[0] = '\0';
+    NewCustomParams.clear();
+    NewCustomError.clear();
+}
+
+void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
+{
+    static const char *kTypeNames[]  = { "Int", "Float", "Bool", "String" };
+    static const Value  kTypeValues[] = { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_STRING };
+
+    if (CustomBlockCreateRequested) {
+        ImGui::OpenPopup("##canvas_create_custom_block_popup");
+        CustomBlockCreateRequested = false;
+    }
+
+    if (!ImGui::BeginPopup("##canvas_create_custom_block_popup"))
+        return;
+
+    constexpr float PopupFieldWidth = 280.0f;
+
+    ImGui::TextUnformatted("Create a Block");
+    ImGui::Separator();
+
+    ImGui::SetNextItemWidth(PopupFieldWidth);
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere(0);
+    ImGui::InputTextWithHint(
+            "##custom_block_name",
+            "block name",
+            NewCustomNameBuf,
+            sizeof(NewCustomNameBuf));
+
+    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::InputTextMultiline(
+            "##custom_block_desc",
+            NewCustomDescBuf,
+            sizeof(NewCustomDescBuf),
+            ImVec2(PopupFieldWidth, 50.0f));
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Optional description");
+
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Inputs");
+
+    int removeIndex = -1;
+    for (int i = 0; i < (int)NewCustomParams.size(); ++i) {
+        ImGui::PushID(i);
+
+        CustomParamEdit &p = NewCustomParams[i];
+
+        ImGui::SetNextItemWidth(PopupFieldWidth * 0.5f - 18.0f);
+        ImGui::InputTextWithHint("##param_name", "arg name", p.NameBuf, sizeof(p.NameBuf));
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(PopupFieldWidth * 0.35f - 18.0f);
+        ImGui::Combo("##param_type", &p.TypeIndex, kTypeNames, IM_ARRAYSIZE(kTypeNames));
+
+        ImGui::SameLine();
+        if (ImGui::Button("x"))
+            removeIndex = i;
+
+        ImGui::PopID();
+    }
+
+    if (removeIndex >= 0)
+        NewCustomParams.erase(NewCustomParams.begin() + removeIndex);
+
+    if (ImGui::Button("+ Add an Input", ImVec2(PopupFieldWidth, 0.0f)))
+        NewCustomParams.push_back(CustomParamEdit{});
+
+    if (!NewCustomError.empty()) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", NewCustomError.c_str());
+        ImGui::PopTextWrapPos();
+    }
+
+    ImGui::Spacing();
+    bool createClicked = ImGui::Button("Create Block", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    ImGui::SameLine();
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+
+    if (createClicked) {
+        std::string name(NewCustomNameBuf);
+
+        if (name.empty()) {
+            NewCustomError = "Give the block a name";
+        } else {
+            CustomBlockSpec spec;
+            spec.Name = name;
+            spec.Description = NewCustomDescBuf;
+
+            for (CustomParamEdit &p : NewCustomParams) {
+                std::string pname(p.NameBuf);
+                if (pname.empty())
+                    continue;
+                spec.Params.push_back({ pname, kTypeValues[p.TypeIndex] });
+            }
+
+            Error err = RegisterCustomBlock(registry, spec);
+
+            if (err == Error::Ok) {
+                const BlockDefinition *hatDef =
+                    FindDefinitionByOpCode(registry, CustomHatOpCode(name));
+
+                if (hatDef) {
+                    ImVec2 spawnScreen = Origin + ImVec2(60.0f, 60.0f);
+                    AddBlock(*hatDef, ScreenToWorld(spawnScreen, Origin));
+                }
+
+                NewCustomError.clear();
+                NewCustomParams.clear();
+                ImGui::CloseCurrentPopup();
+            } else if (err == Error::BlockAlreadyExists) {
+                NewCustomError = "A block named '" + name + "' already exists";
+            } else {
+                NewCustomError = "Couldn't create block '" + name + "'";
+            }
+        }
+    }
+
+    if (cancelClicked) {
+        NewCustomError.clear();
+        NewCustomParams.clear();
         ImGui::CloseCurrentPopup();
     }
 

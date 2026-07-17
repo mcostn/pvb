@@ -103,6 +103,7 @@ inline ImU32 CategoryColor(BlockCategory category)
         case BlockCategory::Math:        return IM_COL32(53, 105, 173, 255);
         case BlockCategory::Logic:       return IM_COL32(122, 77, 178, 255);
         case BlockCategory::Variable:    return IM_COL32(176, 77, 178, 255);
+        case BlockCategory::Custom:      return IM_COL32(255, 140, 66, 255);
     }
 
     return IM_COL32(90, 90, 90, 255);

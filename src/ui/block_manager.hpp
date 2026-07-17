@@ -32,7 +32,7 @@ public:
     void DeleteBlock(VisualBlock *block) { DeleteRange(block, block); }
     void DeleteBelow(VisualBlock *block) { DeleteRange(block, FindTail(block)); }
     void DeleteAbove(VisualBlock *block) { DeleteRange(FindRoot(block), block); }
-    void DeleteAll() { Blocks.clear(); Roots.clear(); }
+    void DeleteAll();
 
     VisualBlock *FindBlock(u32 id);
 

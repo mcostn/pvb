@@ -27,6 +27,9 @@ public:
     void Draw();
     void DrawMenuBar();
 
+    float PaletteWidth = 260.0f;
+    static constexpr float PaletteMinWidth = 180.0f;
+    static constexpr float PaletteMaxWidth = 450.0f;
     bool ShowPalette = true;
     BlockPalette Palette;
     PaletteDragState Drag;

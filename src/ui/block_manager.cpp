@@ -216,6 +216,24 @@ void BlockManager::DeleteRange(VisualBlock *first, VisualBlock *last)
     }
 }
 
+void BlockManager::DeleteAll()
+{
+    std::vector<VisualBlock *> toDelete;
+
+    for (VisualBlock *root : Roots) {
+        bool isCustomDefinition =
+            root->Def &&
+            root->Def->Shape == BlockShape::Hat &&
+            root->Def->Category == BlockCategory::Custom;
+
+        if (!isCustomDefinition)
+            toDelete.push_back(root);
+    }
+
+    for (VisualBlock *root : toDelete)
+        DeleteRange(root, FindTail(root));
+}
+
 VisualBlock *BlockManager::FindBlock(u32 id)
 {
     for (auto &b : Blocks)

@@ -24,4 +24,5 @@ public:
         const BlockDefinition &def);
 
     void DrawVariableSection(Canvas &canvas, BlockRegistry &registry);
+    void DrawCustomSection(Canvas &canvas, BlockRegistry &registry);
 };

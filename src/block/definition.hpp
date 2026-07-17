@@ -32,6 +32,7 @@ enum class BlockCategory
     Math,
     Logic,
     Variable,
+    Custom,
 };
 
 enum class BlockShape
