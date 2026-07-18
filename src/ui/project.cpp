@@ -34,6 +34,7 @@ static Error ParseIdList(
 static Error TypedToArg(
         const std::string &type,
         const std::string &rawValue,
+        const BlockRegistry &registry,
         VisualArg &out);
 
 static std::pair<std::string, std::string> LiteralToTyped(const LiteralValue &lit);
@@ -419,7 +420,7 @@ Error LoadProject(
 
                 std::string type = raw.substr(0, colon);
                 std::string value = raw.substr(colon + 1);
-                TRY(TypedToArg(type, value, block->Args[key]));
+                TRY(TypedToArg(type, value, registry, block->Args[key]));
             }
         }
 
@@ -647,7 +648,7 @@ static Error VariableTypeFromString(const std::string &str, Value &out)
     if (str == "string")      { out = VAL_STRING; return Error::Ok; }
 
     GlobalLogger.Error(
-            "Unknown variable type '%s'",
+            "Unknown variable type '{}'",
             str.c_str());
 
     return Error::ProjectInvalidData;
@@ -670,7 +671,7 @@ static Error CodeLanguageFromString(const std::string &str, CodeLanguage &out)
     if (str == "python") { out = CodeLanguage::Python; return Error::Ok; }
 
     GlobalLogger.Error(
-            "Unknown project language '%s'",
+            "Unknown project language '{}'",
             str.c_str());
 
     return Error::ProjectInvalidData;
@@ -709,7 +710,7 @@ static Error GetU32(
         out = static_cast<u32>(std::stoul(value));
     } catch (...) {
         GlobalLogger.Error(
-                "Invalid integer '%s' for %s.%s",
+                "Invalid integer '{}' for {}.{}",
                 value.c_str(),
                 section.c_str(),
                 key.c_str());
@@ -733,7 +734,7 @@ static Error GetFloat(
         out = std::stof(value);
     } catch (...) {
         GlobalLogger.Error(
-                "Invalid float '%s' for %s.%s",
+                "Invalid float '{}' for {}.{}",
                 value.c_str(),
                 section.c_str(),
                 key.c_str());
@@ -761,7 +762,7 @@ static Error ParseIdList(
             out.push_back(static_cast<u32>( std::stoul(token)));
         } catch (...) {
             GlobalLogger.Error(
-                    "Invalid id '%s'",
+                    "Invalid id '{}'",
                     token.c_str());
 
             return Error::ProjectInvalidData;
@@ -774,6 +775,7 @@ static Error ParseIdList(
 static Error TypedToArg(
         const std::string &type,
         const std::string &rawValue,
+        const BlockRegistry &registry,
         VisualArg &out)
 {
     std::string value = IniFile::Unescape(rawValue);
@@ -805,9 +807,16 @@ static Error TypedToArg(
 
 
     if (type == "var") {
-        out = VisualArg{
-            VariableRef{ value }
-        };
+        VariableRef ref{ value };
+
+        for (const VariableInfo &v : registry.Variables) {
+            if (v.Name == value) {
+                ref.Type = v.Type;
+                break;
+            }
+        }
+
+        out = VisualArg{ std::move(ref) };
 
         return Error::Ok;
     }
@@ -823,7 +832,7 @@ static Error TypedToArg(
 
 
     GlobalLogger.Error(
-            "Unknown argument type '%s'",
+            "Unknown argument type '{}'",
             type.c_str());
 
     return Error::ProjectInvalidData;

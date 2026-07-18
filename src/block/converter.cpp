@@ -56,7 +56,7 @@ std::unique_ptr<Expr> BlockConverter::ResolveArg(const BlockArg &arg, Value expe
         }, *lit);
 
     if (auto *varRef = std::get_if<VariableRef>(&arg))
-        return Var(varRef->Name, expectedType);
+        return Var(varRef->Name, varRef->Type);
 
     if (auto *nested = std::get_if<std::unique_ptr<BlockInstance>>(&arg))
         return ConvertExpr(**nested);

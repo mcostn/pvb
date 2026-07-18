@@ -13,6 +13,7 @@ struct BlockInstance;
 struct VariableRef
 {
     std::string Name;
+    Value Type = VAL_ANY;
 };
 
 using BlockArg = std::variant<

@@ -172,9 +172,10 @@ BlockRegistry GetBlockRegistry()
             DISCARD(c);
             const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
             std::string varName = varRef ? varRef->Name : "";
+            Value varType = varRef ? varRef->Type : VAL_ANY;
 
-             auto varExpr = std::make_unique<VariableExpr>(VAL_ANY);
-             varExpr->Name = varName;
+            auto varExpr = std::make_unique<VariableExpr>(varType);
+            varExpr->Name = varName;
 
             return Read(std::move(varExpr));
         }
