@@ -144,6 +144,11 @@ void CodeView::Draw(const char *strId, ImVec2 size)
     ImGui::PushID(strId);
 
     Editor.SetReadOnly(ReadOnly);
+
+    ImGui::BeginChild("##code", size);
+    ImGui::SetWindowFontScale(1.5f);
+    ImGui::EndChild();
+
     Editor.Render("##code", size);
 
     ImGui::PopID();
