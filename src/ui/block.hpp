@@ -131,7 +131,7 @@ public:
 };
 
 BlockLayout ComputeBlockLayout(const BlockDefinition &def, VisualBlock &block, const LayoutMetrics &m);
-void DrawBlockLayout(
+bool DrawBlockLayout(
         ImDrawList *drawList,
         VisualBlock &block,
         ImVec2 topLeft,

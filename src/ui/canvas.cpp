@@ -106,12 +106,20 @@ void Canvas::Draw(const char *strId, ImVec2 size)
     HandleBlockDrag(origin, Hovered);
     HandleContextMenu(origin, Hovered);
 
+    HoveredBlockId = 0;
+    if (DraggingId == 0 && Hovered) {
+        if (VisualBlock *hb = HitTest(ImGui::GetIO().MousePos, origin))
+            HoveredBlockId = hb->Id;
+    }
+
     DrawComments(origin);
 
     for (VisualBlock *root : Manager.Roots)
         DrawChain(drawList, root, origin);
 
     DrawSnapPreview(drawList, origin);
+
+    TryBeginBlockDrag(origin, Hovered);
 
     ImGui::EndChild();
     ImGui::PopID();
@@ -293,7 +301,10 @@ void Canvas::DrawBlock(ImDrawList *drawList, VisualBlock &block, ImVec2 origin)
 
     ImFont *font = ImGui::GetFont();
     float fontSize = ImGui::GetFontSize() * Zoom;
-    DrawBlockLayout(
+
+    bool interactive = (block.Id == HoveredBlockId) || (block.Id == ActiveBlockId);
+
+    bool stillFocused = DrawBlockLayout(
             drawList,
             block,
             topLeft,
@@ -301,8 +312,13 @@ void Canvas::DrawBlock(ImDrawList *drawList, VisualBlock &block, ImVec2 origin)
             font,
             fontSize,
             IM_COL32(255, 255, 255, 255),
-            true,
+            interactive,
             *this);
+
+    if (stillFocused)
+        ActiveBlockId = block.Id;
+    else if (ActiveBlockId == block.Id)
+        ActiveBlockId = 0;
 }
 
 void Canvas::DrawChain(ImDrawList *drawList, VisualBlock *block, ImVec2 origin)
@@ -444,17 +460,25 @@ void Canvas::HandleBlockDrag(ImVec2 origin, bool hovered)
     }
 
     CurrentSnap = SnapResult{};
+}
+
+void Canvas::TryBeginBlockDrag(ImVec2 origin, bool hovered)
+{
+    if (DraggingId)
+        return;
 
     if (!hovered)
         return;
     if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         return;
-    if (ImGui::IsAnyItemHovered() || ImGui::IsAnyItemActive())
-        return;
 
+    ImGuiIO &io = ImGui::GetIO();
     VisualBlock *clicked = HitTest(io.MousePos, origin);
 
     if (!clicked)
+        return;
+
+    if (clicked->Id == ActiveBlockId)
         return;
 
     DraggingId = clicked->Id;
@@ -1179,7 +1203,7 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
 
         if (err == Error::Ok) {
             if (VarCreateRequest.TargetBlock && !VarCreateRequest.TargetKey.empty())
-                VarCreateRequest.TargetBlock->Args[VarCreateRequest.TargetKey] = VisualArg{ VariableRef{ name } };
+                VarCreateRequest.TargetBlock->Args[VarCreateRequest.TargetKey] = VisualArg{ VariableRef{ name, type } };
 
             NewVarError.clear();
             NewVarNameBuf[0] = '\0';

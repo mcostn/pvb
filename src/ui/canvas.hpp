@@ -60,6 +60,8 @@ public:
     ImVec2 ScreenToWorld(ImVec2 screen, ImVec2 origin) const;
 
     u32 SelectedId = 0;
+    u32 HoveredBlockId = 0;
+    u32 ActiveBlockId = 0;
 
     ImVec2 Pan = ImVec2(0.0f, 0.0f);
     bool IsPanning = false;
@@ -72,6 +74,7 @@ public:
     ImVec2 DragBlockStartWorld = ImVec2(0.0f, 0.0f);
     ImVec2 DragMouseStartScreen = ImVec2(0.0f, 0.0f);
     void HandleBlockDrag(ImVec2 origin, bool hovered);
+    void TryBeginBlockDrag(ImVec2 origin, bool hovered);
 
     SnapResult CurrentSnap {};
     void DrawSnapPreview(ImDrawList *drawList, ImVec2 origin);

@@ -24,7 +24,7 @@ static void DrawTextSlot(
     ImVec2 topLeft,
     ImVec2 size,
     float zoom);
-static void DrawVarSlot(
+static bool DrawVarSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
@@ -36,7 +36,7 @@ static void DrawVarSlot(
     ImU32 textColor,
     bool interactive,
     Canvas &canvas);
-static void DrawInputSlot(
+static bool DrawInputSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
@@ -290,7 +290,7 @@ BlockLayout ComputeBlockLayout(
     return layout;
 }
 
-void DrawBlockLayout(
+bool DrawBlockLayout(
         ImDrawList *drawList,
         VisualBlock &block,
         ImVec2 topLeft,
@@ -301,6 +301,8 @@ void DrawBlockLayout(
         bool interactive,
         Canvas &canvas)
 {
+    bool anyActive = false;
+
     for (const RowLayout &row : block.Layout.Rows) {
         if (row.IsBody) {
             continue;
@@ -317,12 +319,12 @@ void DrawBlockLayout(
                     break;
                 case BlockSchemaType::Var:
                     if (!GetPluggedArg(block, slot.Item->Name))
-                        DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive, canvas);
+                        anyActive |= DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive, canvas);
                     break;
                 default:
                     if (!GetPluggedArg(block, slot.Item->Name)) {
                         if (slot.Item->ValueType == VAL_ANY)
-                            DrawInputSlot(
+                            anyActive |= DrawInputSlot(
                                     drawList,
                                     block,
                                     slot,
@@ -338,7 +340,7 @@ void DrawBlockLayout(
                                     slotSize,
                                     Darken(CategoryColor(block.Def->Category)));
                         else
-                            DrawInputSlot(
+                            anyActive |= DrawInputSlot(
                                     drawList,
                                     block,
                                     slot,
@@ -352,6 +354,8 @@ void DrawBlockLayout(
             }
         }
     }
+
+    return anyActive;
 }
 
 static std::vector<BlockRow> BuildRows(const BlockSchema &schema)
@@ -497,7 +501,7 @@ static void DrawTextSlot(
         label);
 }
 
-static void DrawVarSlot(
+static bool DrawVarSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
@@ -522,7 +526,7 @@ static void DrawVarSlot(
     drawList->AddText(font, fontSize, textPos, textColor, displayName);
 
     if (!interactive)
-        return;
+        return false;
 
     ImGui::SetCursorScreenPos(topLeft);
     ImGui::PushID(block.Id);
@@ -530,6 +534,9 @@ static void DrawVarSlot(
     ImGui::InvisibleButton("##var_btn", size);
     if (ImGui::IsItemClicked())
         ImGui::OpenPopup("##var_popup");
+
+    bool popupOpen = ImGui::IsPopupOpen("##var_popup");
+
     if (ImGui::BeginPopup("##var_popup")) {
         BlockRegistry *registry = canvas.Registry;
         Value requiredType = slot.Item->ValueType;
@@ -544,8 +551,10 @@ static void DrawVarSlot(
                 anyShown = true;
 
                 bool selected = (v.Name == ref.Name);
-                if (ImGui::Selectable(v.Name.c_str(), selected))
+                if (ImGui::Selectable(v.Name.c_str(), selected)) {
                     ref.Name = v.Name;
+                    ref.Type = v.Type;
+                }
             }
         }
 
@@ -561,9 +570,11 @@ static void DrawVarSlot(
     }
     ImGui::PopID();
     ImGui::PopID();
+
+    return popupOpen;
 }
 
-static void DrawInputSlot(
+static bool DrawInputSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
@@ -595,7 +606,7 @@ static void DrawInputSlot(
                 text.c_str());
         drawList->PopClipRect();
 
-        return;
+        return false;
     }
 
     drawList->AddRectFilled(topLeft, topLeft + size, boxColor, 0.0f);
@@ -620,12 +631,17 @@ static void DrawInputSlot(
 
     if (ImGui::InputText("##input", &text))
         ApplyEditString(lit, text);
+
+    bool active = ImGui::IsItemActive();
+
     ImGui::PopID();
     ImGui::PopID();
 
     ImGui::PopStyleColor(4);
     ImGui::PopStyleVar();
     ImGui::SetWindowFontScale(1.0f);
+
+    return active;
 }
 
 static void DrawBoolSlot(
