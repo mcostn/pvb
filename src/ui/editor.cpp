@@ -219,21 +219,23 @@ void Editor::HandlePaletteDrag()
     VisualBlock &ghost = *Drag.Ghost;
     ImDrawList *draw = ImGui::GetForegroundDrawList();
 
-    ImVec2 topLeft = mouse;
-    BlockOutline outline = BuildOutline(ghost, topLeft, 1.0f);
+    float zoom = CanvasView.Zoom;
 
-    outline.Fill(draw, CategoryColor( ghost.Def->Category));
-    outline.Stroke(draw, IM_COL32(0,0,0,150), 1.0f);
+    ImVec2 topLeft = mouse;
+    BlockOutline outline = BuildOutline(ghost, topLeft, zoom);
+
+    outline.Fill(draw, CategoryColor(ghost.Def->Category));
+    outline.Stroke(draw, IM_COL32(0,0,0,150), 1.0f * zoom);
 
     DrawBlockLayout(
-        draw,
-        ghost,
-        topLeft,
-        1.0f,
-        ImGui::GetFont(),
-        ImGui::GetFontSize(),
-        IM_COL32(255,255,255,220),
-        false);
+            draw,
+            ghost,
+            topLeft,
+            zoom,
+            ImGui::GetFont(),
+            ImGui::GetFontSize() * zoom,
+            IM_COL32(255,255,255,220),
+            false);
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         if (CanvasView.Hovered) {
