@@ -9,6 +9,7 @@
 #include "block/registry.hpp"
 
 static std::vector<BlockRow> BuildRows(const BlockSchema &schema);
+static bool IsSeparatorRow(const BlockRow &row, bool followsBody);
 
 static LiteralValue &GetLiteralArg(VisualBlock &block, const BlockSchemaItem &item);
 static VariableRef &GetVariableArg(VisualBlock &block, const std::string &key);
@@ -157,15 +158,53 @@ BlockLayout ComputeBlockLayout(
 
     float top = m.Padding.y;
 
-    for (const BlockRow &src : rows) {
+    for (size_t rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
+        const BlockRow &src = rows[rowIndex];
+        const bool followsBody = rowIndex > 0 && rows[rowIndex - 1].IsBody;
+        const bool isSeparator = IsSeparatorRow(src, followsBody);
+        const bool nextIsSeparator = rowIndex + 1 < rows.size() && IsSeparatorRow(rows[rowIndex + 1], src.IsBody);
+
         RowLayout row;
-        row.IsBody   = src.IsBody;
+        row.IsBody = src.IsBody;
+        row.IsSeparator = isSeparator;
         row.BodyItem = src.BodyItem;
-        row.Top      = top;
+        row.Top = top;
 
         if (src.IsBody) {
             row.Height = m.BodyMinHeight;
             row.NaturalWidth = m.BodyIndent + m.BodyNotchWidth + m.Padding.x;
+        } else if (isSeparator) {
+            float tallest = 0.0f;
+
+            for (const BlockSchemaItem *item : src.Tokens) {
+                SlotLayout slot;
+                slot.Item = item;
+
+                const char *label = item->Name.empty() ? " " : item->Name.c_str();
+
+                slot.Size = ImGui::CalcTextSize(label);
+                slot.Size.x += kTextHorizontalPadding * 2.0f;
+                slot.Size.y += kTextVerticalPadding * 2.0f;
+                tallest = std::max(tallest, slot.Size.y);
+                row.Slots.push_back(std::move(slot));
+            }
+
+            row.Height = std::max(m.BodyBottomBarHeight, tallest + m.Padding.y * 2.0f);
+            float cursorX = m.Padding.x;
+
+            for (SlotLayout &slot : row.Slots) {
+                slot.Pos.x = cursorX;
+                cursorX += slot.Size.x + m.TokenGap;
+            }
+
+            float maxRight = 0.0f;
+
+            for (SlotLayout &slot : row.Slots) {
+                slot.Pos.y = row.Top + (row.Height - slot.Size.y) * 0.5f;
+                maxRight = std::max(maxRight, slot.Pos.x + slot.Size.x);
+            }
+
+            row.NaturalWidth = maxRight + m.Padding.x;
         } else {
             row.Height = 0.0f;
 
@@ -177,10 +216,9 @@ BlockLayout ComputeBlockLayout(
                 switch (item->Type) {
                     case BlockSchemaType::Text:
                         {
-                            const char *label =
-                                item->Name.empty() ? " " : item->Name.c_str();
-
+                            const char *label = item->Name.empty() ? " " : item->Name.c_str();
                             slot.Size = ImGui::CalcTextSize(label);
+                            slot.Size.x += kTextHorizontalPadding * 2.0f;
                             break;
                         }
 
@@ -189,9 +227,7 @@ BlockLayout ComputeBlockLayout(
                             if (VisualBlock *plugged = GetPluggedArg(block, item->Name)) {
                                 slot.Size = plugged->Size;
                             } else {
-                                slot.Size = ImVec2(
-                                        m.VarSlotWidth,
-                                        inlineRowHeight);
+                                slot.Size = ImVec2(m.VarSlotWidth, inlineRowHeight);
                             }
                             break;
                         }
@@ -243,13 +279,8 @@ BlockLayout ComputeBlockLayout(
             float maxRight = 0.0f;
 
             for (SlotLayout &slot : row.Slots) {
-                slot.Pos.y =
-                    row.Top +
-                    (row.Height - slot.Size.y) * 0.5f;
-
-                maxRight = std::max(
-                        maxRight,
-                        slot.Pos.x + slot.Size.x);
+                slot.Pos.y = row.Top + (row.Height - slot.Size.y) * 0.5f;
+                maxRight = std::max(maxRight, slot.Pos.x + slot.Size.x);
             }
 
             row.NaturalWidth = maxRight + m.Padding.x;
@@ -257,7 +288,7 @@ BlockLayout ComputeBlockLayout(
 
         top += row.Height;
 
-        if (row.IsBody)
+        if (row.IsBody && !nextIsSeparator)
             top += m.BodyBottomBarHeight;
 
         layout.Rows.push_back(std::move(row));
@@ -284,13 +315,12 @@ BlockLayout ComputeBlockLayout(
     for (const RowLayout &row : layout.Rows)
         width = std::max(width, row.NaturalWidth);
 
-    // Center every inline row.
+    // Center header inline rows, separator rows stay left-aligned
     for (RowLayout &row : layout.Rows) {
-        if (row.IsBody)
+        if (row.IsBody || row.IsSeparator)
             continue;
 
         float offset = (width - row.NaturalWidth) * 0.5f;
-
         for (SlotLayout &slot : row.Slots)
             slot.Pos.x += offset;
     }
@@ -366,6 +396,19 @@ bool DrawBlockLayout(
     }
 
     return anyActive;
+}
+
+static bool IsSeparatorRow(const BlockRow &row, bool followsBody)
+{
+    if (!followsBody || row.IsBody || row.Tokens.empty())
+        return false;
+
+    for (const BlockSchemaItem *item : row.Tokens) {
+        if (item->Type != BlockSchemaType::Text)
+            return false;
+    }
+
+    return true;
 }
 
 static std::vector<BlockRow> BuildRows(const BlockSchema &schema)
@@ -497,10 +540,8 @@ static void DrawTextSlot(
             0.0f,
             label);
 
-    constexpr float HorizontalPadding = 6.0f;
-
     ImVec2 textPos(
-        topLeft.x + HorizontalPadding * zoom,
+        topLeft.x + kTextHorizontalPadding * zoom,
         topLeft.y + (size.y - textSize.y) * 0.5f);
 
     drawList->AddText(

@@ -45,6 +45,7 @@ struct SlotLayout
 struct RowLayout
 {
     bool IsBody = false;
+    bool IsSeparator = false;
     const BlockSchemaItem *BodyItem = nullptr;
     float Top = 0.0f;
     float Height = 0.0f;

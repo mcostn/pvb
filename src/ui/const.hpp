@@ -8,6 +8,8 @@ constexpr float kRowGap = 3.0f;
 constexpr float kBodyIndent = 18.0f;
 constexpr float kBodyMinHeight = 28.0f;
 constexpr float kBodyBottomBarHeight = 14.0f;
+constexpr float kTextHorizontalPadding = 6.0f;
+constexpr float kTextVerticalPadding = 4.0f;
 constexpr float kMinBlockWidth = 60.0f;
 
 constexpr float kReporterPadding = 10.0f;
