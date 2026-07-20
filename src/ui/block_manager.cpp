@@ -502,8 +502,7 @@ void BlockManager::SearchChainForSnap(VisualBlock *chain, VisualBlock *dragging,
                 SearchChainForSnap(bodyHead, dragging, bestDist, result);
 
             if (!bodyHead && IsStatement(dragging)) {
-                ImVec2 opening(block->Pos.x + kBodyIndent + dragging->Size.x * 0.5f,
-                        block->Pos.y + row.Top);
+                ImVec2 opening(block->Pos.x, block->Pos.y + row.Top);
                 ImVec2 dragTop = TopSnap(*dragging);
 
                 float dx = opening.x - dragTop.x;
