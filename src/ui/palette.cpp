@@ -3,6 +3,21 @@
 #include "ui/editor.hpp"
 #include "ui/custom_block.hpp"
 
+static const char *CategoryDisplayName(BlockCategory category)
+{
+    switch (category) {
+        case BlockCategory::Event:       return "Events";
+        case BlockCategory::Console:     return "Console";
+        case BlockCategory::ControlFlow: return "Control Flow";
+        case BlockCategory::Math:        return "Math";
+        case BlockCategory::Logic:       return "Logic";
+        case BlockCategory::Variable:    return "Variables";
+        case BlockCategory::Custom:      return "My Blocks";
+    }
+
+    return "Other";
+}
+
 bool BlockPalette::Matches(const BlockDefinition &def) const
 {
     if (Search[0] == '\0')
@@ -58,17 +73,46 @@ void BlockPalette::DrawBlockPreview(
     ImGui::PopID();
 }
 
+void BlockPalette::DrawCategorySection(Canvas &canvas, BlockRegistry &registry, BlockCategory category)
+{
+    bool hasVisibleBlock = false;
+    for (auto &def : registry.Definitions) {
+        if (def.Category != category)
+            continue;
+        if (!Matches(def))
+            continue;
+        hasVisibleBlock = true;
+        break;
+    }
+
+    if (!hasVisibleBlock)
+        return;
+
+    ImGui::TextUnformatted(CategoryDisplayName(category));
+    ImGui::Separator();
+
+    for (auto &def : registry.Definitions) {
+        if (def.Category != category)
+            continue;
+        if (!Matches(def))
+            continue;
+
+        DrawBlockPreview(canvas, def);
+    }
+
+    ImGui::Spacing();
+}
+
 void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
 {
     ImGui::TextUnformatted("Variables");
+    ImGui::Separator();
 
     float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
     if (ImGui::Button("Make a Variable", ImVec2(fieldWidth, 0.0f))) {
         canvas.RequestVariableCreation(nullptr, "", VAL_ANY);
     }
-
-    ImGui::Separator();
 
     for (auto &def : registry.Definitions) {
         if (def.Category != BlockCategory::Variable)
@@ -83,6 +127,7 @@ void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
 void BlockPalette::DrawCustomSection(Canvas &canvas, BlockRegistry &registry)
 {
     ImGui::TextUnformatted("My Blocks");
+    ImGui::Separator();
 
     float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
@@ -129,23 +174,18 @@ void BlockPalette::Draw(
     ImGui::InputText("Search", Search, sizeof(Search));
     ImGui::Separator();
 
-    for (auto &def : registry.Definitions) {
-        if (def.Category == BlockCategory::Variable)
-            continue;
-        if (def.Category == BlockCategory::Custom)
-            continue;
-        if (!Matches(def))
-            continue;
+    static const BlockCategory kCategoryOrder[] = {
+        BlockCategory::Event,
+        BlockCategory::Console,
+        BlockCategory::ControlFlow,
+        BlockCategory::Math,
+        BlockCategory::Logic,
+    };
 
-        DrawBlockPreview(
-            canvas,
-            def);
-    }
+    for (BlockCategory category : kCategoryOrder)
+        DrawCategorySection(canvas, registry, category);
 
-    ImGui::Separator();
     DrawVariableSection(canvas, registry);
-
-    ImGui::Separator();
     DrawCustomSection(canvas, registry);
 
     ImGui::EndChild();

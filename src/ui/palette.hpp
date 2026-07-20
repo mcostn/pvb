@@ -19,10 +19,8 @@ public:
 
     bool Matches(const BlockDefinition &def) const;
 
-    void DrawBlockPreview(
-        Canvas &canvas,
-        const BlockDefinition &def);
-
+    void DrawBlockPreview(Canvas &canvas, const BlockDefinition &def);
+    void DrawCategorySection(Canvas &canvas, BlockRegistry &registry, BlockCategory category);
     void DrawVariableSection(Canvas &canvas, BlockRegistry &registry);
     void DrawCustomSection(Canvas &canvas, BlockRegistry &registry);
 };
