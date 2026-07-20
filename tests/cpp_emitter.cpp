@@ -544,6 +544,31 @@ int main()
 )")
 
 CODEGEN_TEST(
+    Continue,
+    AST_Continue,
+    R"(int main()
+{
+    for (; ; ) {
+        continue;
+    }
+}
+)"
+)
+
+CODEGEN_TEST(
+    Break,
+    AST_Break,
+    R"(int main()
+{
+    for (; ; ) {
+        break;
+    }
+}
+)"
+)
+
+
+CODEGEN_TEST(
     ForLoop,
     AST_ForLoop,
     R"(#include <iostream>

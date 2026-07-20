@@ -159,6 +159,18 @@ std::unique_ptr<ForStmt> For(
     return stmt;
 }
 
+std::unique_ptr<LoopStmt> Continue()
+{
+    auto stmt = std::make_unique<LoopStmt>(LoopStmtKind::Continue);
+    return stmt;
+}
+
+std::unique_ptr<LoopStmt> Break()
+{
+    auto stmt = std::make_unique<LoopStmt>(LoopStmtKind::Break);
+    return stmt;
+}
+
 std::unique_ptr<DeclVarStmt> DeclVar(
     Value type,
     std::string name,

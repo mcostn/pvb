@@ -306,6 +306,27 @@ std::string Generate(const Program &program)
         ) \
     )
 
+#define AST_Continue \
+    MakeProgram( \
+        For( \
+            nullptr, \
+            nullptr, \
+            nullptr, \
+            Block(Continue()) \
+        ) \
+    )
+
+#define AST_Break \
+    MakeProgram( \
+        For( \
+            nullptr, \
+            nullptr, \
+            nullptr, \
+            Block(Break()) \
+        ) \
+    )
+
+
 #define AST_DeclVarNoInitializer \
     MakeProgram( \
         DeclVar(VAL_INT, "x", nullptr) \

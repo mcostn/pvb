@@ -59,6 +59,7 @@ public:
     virtual Error Visit(const IfStmt&) = 0;
     virtual Error Visit(const ForStmt&) = 0;
     virtual Error Visit(const WhileStmt&) = 0;
+    virtual Error Visit(const LoopStmt&) = 0;
     virtual Error Visit(const DeclVarStmt&) = 0;
 
     // Util

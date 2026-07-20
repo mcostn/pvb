@@ -286,6 +286,20 @@ Error CppEmitter::Visit(const ForStmt &stmt)
     return Error::Ok;
 }
 
+Error CppEmitter::Visit(const LoopStmt &stmt)
+{
+    switch (stmt.LoopKind) {
+        case LoopStmtKind::Continue:
+            Out() << "continue;";
+            break;
+        case LoopStmtKind::Break:
+            Out() << "break;";
+            break;
+    }
+
+    return Error::Ok;
+}
+
 Error CppEmitter::Visit(const DeclVarStmt &stmt)
 {
     Out() << ValueToCppType(stmt.Type) << ' ';

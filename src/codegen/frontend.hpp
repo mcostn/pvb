@@ -42,6 +42,7 @@ enum class AstNodeKind
     IfStmt,
     WhileStmt,
     ForStmt,
+    LoopStmt,
 
     DeclVarStmt,
 };
@@ -218,6 +219,18 @@ struct ForStmt : Stmt
     ForStmt() : Stmt(AstNodeKind::ForStmt) {}
 };
 
+enum class LoopStmtKind
+{
+    Continue,
+    Break,
+};
+
+struct LoopStmt : Stmt
+{
+    LoopStmtKind LoopKind;
+    LoopStmt(LoopStmtKind kind) : Stmt(AstNodeKind::LoopStmt), LoopKind(kind) {}
+};
+
 struct DeclVarStmt : Stmt
 {
     Value Type;
@@ -294,6 +307,8 @@ std::unique_ptr<FunctionStmt> Function(Value retType, std::string name, std::vec
 std::unique_ptr<WhileStmt> While(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> body);
 std::unique_ptr<IfStmt> If(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch = nullptr);
 std::unique_ptr<ForStmt> For(std::unique_ptr<Stmt> init, std::unique_ptr<Expr> cond, std::unique_ptr<Expr> update, std::unique_ptr<Stmt> body);
+std::unique_ptr<LoopStmt> Continue();
+std::unique_ptr<LoopStmt> Break();
 std::unique_ptr<DeclVarStmt> DeclVar(Value type, std::string name, std::unique_ptr<Expr> init);
 
 template<ExprPtr... Ts>

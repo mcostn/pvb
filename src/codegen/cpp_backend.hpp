@@ -43,6 +43,7 @@ public:
     Error Visit(const IfStmt&) override;
     Error Visit(const WhileStmt&) override;
     Error Visit(const ForStmt&) override;
+    Error Visit(const LoopStmt&) override;
     Error Visit(const DeclVarStmt&) override;
 
     CppContext Context;

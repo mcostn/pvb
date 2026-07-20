@@ -223,6 +223,20 @@ CODEGEN_TEST(
 )")
 
 CODEGEN_TEST(
+    Continue,
+    AST_Continue,
+    R"(while True:
+    continue
+)")
+
+CODEGEN_TEST(
+    Break,
+    AST_Break,
+    R"(while True:
+    break
+)")
+
+CODEGEN_TEST(
     DeclVarNoInitializer,
     AST_DeclVarNoInitializer,
     R"(x = None

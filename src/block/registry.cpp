@@ -586,6 +586,32 @@ BlockRegistry GetBlockRegistry()
     }));
 
     DISCARD(out.RegisterBlock({
+        .Fmt = "Continue",
+        .Description = "Goes to the next iteration of a loop",
+        .OpCode = "continue",
+        .Category = BlockCategory::ControlFlow,
+        .Shape = BlockShape::Cap,
+        .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            DISCARD(b);
+            return Continue();
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Break",
+        .Description = "Ends the loop",
+        .OpCode = "break",
+        .Category = BlockCategory::ControlFlow,
+        .Shape = BlockShape::Cap,
+        .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            DISCARD(c);
+            DISCARD(b);
+            return Break();
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
         .Fmt = "Exit {int:code=0}",
         .Description = "Exits the program with the specified exit code",
         .OpCode = "exit",

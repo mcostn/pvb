@@ -51,6 +51,9 @@ Error Emitter::Emit(const AstNode &node)
         case AstNodeKind::ForStmt:
             return Visit(static_cast<const ForStmt&>(node));
 
+        case AstNodeKind::LoopStmt:
+            return Visit(static_cast<const LoopStmt&>(node));
+
         case AstNodeKind::DeclVarStmt:
             return Visit(static_cast<const DeclVarStmt&>(node));
 
