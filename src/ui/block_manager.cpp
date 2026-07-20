@@ -412,7 +412,7 @@ void BlockManager::AttachAfter(VisualBlock *parent, VisualBlock *child)
 SnapResult BlockManager::FindSnapTarget(VisualBlock *dragging, float zoom)
 {
     SnapResult result;
-    float bestDist = kSnapDistance / std::max(zoom, 0.01f);
+    float bestDist = kSnapDistance;
 
     for (VisualBlock *root : Roots)
         SearchChainForSnap(root, dragging, bestDist, result);
