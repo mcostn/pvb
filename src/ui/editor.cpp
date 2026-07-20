@@ -224,25 +224,59 @@ void Editor::HandlePaletteDrag()
     ImVec2 topLeft = mouse;
     BlockOutline outline = BuildOutline(ghost, topLeft, zoom);
 
-    outline.Fill(draw, CategoryColor(ghost.Def->Category));
+    outline.Fill(draw, CategoryColor( ghost.Def->Category));
     outline.Stroke(draw, IM_COL32(0,0,0,150), 1.0f * zoom);
 
     DrawBlockLayout(
-            draw,
-            ghost,
-            topLeft,
-            zoom,
-            ImGui::GetFont(),
-            ImGui::GetFontSize() * zoom,
-            IM_COL32(255,255,255,220),
-            false);
+        draw,
+        ghost,
+        topLeft,
+        zoom,
+        ImGui::GetFont(),
+        ImGui::GetFontSize() * zoom,
+        IM_COL32(255,255,255,220),
+        false);
+
+    CanvasView.CurrentSnap = SnapResult{};
+
+    if (CanvasView.Hovered) {
+        ghost.Pos = CanvasView.ScreenToWorld(mouse, CanvasView.Origin);
+        CanvasView.CurrentSnap = CanvasView.Manager.FindSnapTarget(&ghost, zoom);
+
+        if (CanvasView.CurrentSnap.Block)
+            CanvasView.DrawSnapPreview(draw, CanvasView.Origin);
+    }
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         if (CanvasView.Hovered) {
             ImVec2 world = CanvasView.ScreenToWorld(mouse, CanvasView.Origin);
-            CanvasView.AddBlock(*Drag.Definition, world);
+            VisualBlock *placed = CanvasView.AddBlock(*Drag.Definition, world);
+
+            if (placed && CanvasView.CurrentSnap.Block) {
+                switch (CanvasView.CurrentSnap.Type) {
+                    case SnapType::Append:
+                        CanvasView.Manager.AttachAfter(CanvasView.CurrentSnap.Block, placed);
+                        break;
+
+                    case SnapType::Prepend:
+                        CanvasView.Manager.AttachBefore(CanvasView.CurrentSnap.Block, placed);
+                        break;
+
+                    case SnapType::EnterBody:
+                        CanvasView.Manager.AttachToBody(CanvasView.CurrentSnap.Block, CanvasView.CurrentSnap.Slot, placed);
+                        break;
+
+                    case SnapType::EnterArg:
+                        CanvasView.Manager.AttachToArg(CanvasView.CurrentSnap.Block, CanvasView.CurrentSnap.Slot, placed);
+                        break;
+
+                    default:
+                        break;
+                }
+            }
         }
 
+        CanvasView.CurrentSnap = SnapResult{};
         Drag = {};
     }
 }

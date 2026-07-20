@@ -101,7 +101,7 @@ void Canvas::Draw(const char *strId, ImVec2 size)
 
     DrawGrid(drawList, origin, regionSize);
 
-    Hovered = ImGui::IsWindowHovered();
+    Hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
     HandlePanAndZoom(origin, Hovered);
     HandleBlockDrag(origin, Hovered);
     HandleContextMenu(origin, Hovered);
@@ -373,10 +373,11 @@ float Canvas::FindBodyTop(const VisualBlock &block, const std::string &slot)
     return 0.0f;
 }
 
-void Canvas::AddBlock(const BlockDefinition &def, ImVec2 worldPos)
+VisualBlock *Canvas::AddBlock(const BlockDefinition &def, ImVec2 worldPos)
 {
     VisualBlock *result = Manager.AddBlock(def, worldPos);
     if (result) SelectedId = result->Id;
+    return result;
 }
 
 void Canvas::DeleteBlock(VisualBlock *block, DeleteType type)
@@ -501,7 +502,7 @@ void Canvas::TryBeginBlockDrag(ImVec2 origin, bool hovered)
 
 void Canvas::DrawSnapPreview(ImDrawList *drawList, ImVec2 origin)
 {
-    if (!DraggingId || !CurrentSnap.Block)
+    if (!CurrentSnap.Block)
         return;
 
     constexpr ImU32 kSnapColor = IM_COL32(245, 245, 245, 220);

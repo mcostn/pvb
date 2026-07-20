@@ -52,7 +52,7 @@ public:
     float FindBodyTop(const VisualBlock &block, const std::string &slot);
 
     BlockManager Manager;
-    void AddBlock(const BlockDefinition &def, ImVec2 worldPos);
+    VisualBlock *AddBlock(const BlockDefinition &def, ImVec2 worldPos);
     void DuplicateBlock(VisualBlock *block);
     void DeleteBlock(VisualBlock *block, DeleteType type);
 
