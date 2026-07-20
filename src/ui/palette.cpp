@@ -67,6 +67,14 @@ void BlockPalette::DrawBlockPreview(
         canvas.EditorRef->BeginPaletteDrag(def);
     }
 
+    if (ImGui::IsItemHovered() && !def.Description.empty()) {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 24.0f);
+        ImGui::TextUnformatted(def.Description.c_str());
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+
     ImGui::SetCursorScreenPos(start + ImVec2(0, preview.Size.y));
     ImGui::Dummy(ImVec2(preview.Size.x, 8));
 
@@ -106,13 +114,14 @@ void BlockPalette::DrawCategorySection(Canvas &canvas, BlockRegistry &registry, 
 void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
 {
     ImGui::TextUnformatted("Variables");
-    ImGui::Separator();
 
     float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
     if (ImGui::Button("Make a Variable", ImVec2(fieldWidth, 0.0f))) {
         canvas.RequestVariableCreation(nullptr, "", VAL_ANY);
     }
+
+    ImGui::Separator();
 
     for (auto &def : registry.Definitions) {
         if (def.Category != BlockCategory::Variable)
@@ -127,7 +136,6 @@ void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
 void BlockPalette::DrawCustomSection(Canvas &canvas, BlockRegistry &registry)
 {
     ImGui::TextUnformatted("My Blocks");
-    ImGui::Separator();
 
     float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
@@ -185,7 +193,10 @@ void BlockPalette::Draw(
     for (BlockCategory category : kCategoryOrder)
         DrawCategorySection(canvas, registry, category);
 
+    ImGui::Separator();
     DrawVariableSection(canvas, registry);
+
+    ImGui::Separator();
     DrawCustomSection(canvas, registry);
 
     ImGui::EndChild();
