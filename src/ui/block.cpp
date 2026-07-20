@@ -6,12 +6,13 @@
 
 #include "ui/block.hpp"
 #include "ui/const.hpp"
-#include "ui/canvas.hpp"
 #include "block/registry.hpp"
 
 static std::vector<BlockRow> BuildRows(const BlockSchema &schema);
+
 static LiteralValue &GetLiteralArg(VisualBlock &block, const BlockSchemaItem &item);
 static VariableRef &GetVariableArg(VisualBlock &block, const std::string &key);
+
 static std::string LiteralToEditString(const LiteralValue &lit);
 static void ApplyEditString(LiteralValue &lit, const std::string &text);
 
@@ -24,6 +25,7 @@ static void DrawTextSlot(
     ImVec2 topLeft,
     ImVec2 size,
     float zoom);
+
 static bool DrawVarSlot(
     ImDrawList *drawList,
     VisualBlock &block,
@@ -35,7 +37,8 @@ static bool DrawVarSlot(
     float fontSize,
     ImU32 textColor,
     bool interactive,
-    Canvas &canvas);
+    const VariableSlotContext &varContext);
+
 static bool DrawInputSlot(
     ImDrawList *drawList,
     VisualBlock &block,
@@ -45,6 +48,7 @@ static bool DrawInputSlot(
     ImVec2 size,
     float zoom,
     bool interactive);
+
 static void DrawBoolSlot(
     ImDrawList* drawList,
     ImVec2 topLeft,
@@ -90,8 +94,14 @@ BlockOutline &BlockOutline::Tab(float travel, float depth)
     return *this;
 }
 
-BlockOutline &BlockOutline::RightEdgeMouth(float xRight, float xInner, float yTop, float yBottom,
-        float notchInset, float notchWidth, float notchDepth)
+BlockOutline &BlockOutline::RightEdgeMouth(
+        float xRight,
+        float xInner,
+        float yTop,
+        float yBottom,
+        float notchInset,
+        float notchWidth,
+        float notchDepth)
 {
     bool canFitNotch = (xRight - xInner) > notchInset * 2.0f + notchWidth;
 
@@ -299,7 +309,7 @@ bool DrawBlockLayout(
         float fontSize,
         ImU32 textColor,
         bool interactive,
-        Canvas &canvas)
+        const VariableSlotContext &varContext)
 {
     bool anyActive = false;
 
@@ -319,7 +329,7 @@ bool DrawBlockLayout(
                     break;
                 case BlockSchemaType::Var:
                     if (!GetPluggedArg(block, slot.Item->Name))
-                        anyActive |= DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive, canvas);
+                        anyActive |= DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive, varContext);
                     break;
                 default:
                     if (!GetPluggedArg(block, slot.Item->Name)) {
@@ -512,7 +522,7 @@ static bool DrawVarSlot(
     float fontSize,
     ImU32 textColor,
     bool interactive,
-    Canvas &canvas)
+    const VariableSlotContext &varContext)
 {
     VariableRef &ref = GetVariableArg(block, slot.Item->Name);
 
@@ -538,7 +548,7 @@ static bool DrawVarSlot(
     bool popupOpen = ImGui::IsPopupOpen("##var_popup");
 
     if (ImGui::BeginPopup("##var_popup")) {
-        BlockRegistry *registry = canvas.Registry;
+        const BlockRegistry *registry = varContext.Registry;
         Value requiredType = slot.Item->ValueType;
 
         bool anyShown = false;
@@ -563,8 +573,8 @@ static bool DrawVarSlot(
 
         ImGui::Separator();
 
-        if (ImGui::Selectable("Create new..."))
-            canvas.RequestVariableCreation(&block, slot.Item->Name, requiredType);
+        if (ImGui::Selectable("Create new...") && varContext.RequestVariableCreation)
+            varContext.RequestVariableCreation(&block, slot.Item->Name, requiredType);
 
         ImGui::EndPopup();
     }

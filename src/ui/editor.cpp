@@ -233,8 +233,7 @@ void Editor::HandlePaletteDrag()
         ImGui::GetFont(),
         ImGui::GetFontSize(),
         IM_COL32(255,255,255,220),
-        false,
-        CanvasView);
+        false);
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         if (CanvasView.Hovered) {

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
 
 #include "ui/imgui.hpp"
 #include "block/definition.hpp"
 #include "block/instance.hpp"
+#include "block/registry.hpp"
 #include "util/types.hpp"
 
 struct BlockRow
@@ -56,8 +58,6 @@ struct BlockLayout
     std::vector<RowLayout> Rows;
 };
 
-class Canvas;
-
 struct VisualBlock;
 using VisualArg = std::variant<
     LiteralValue,
@@ -86,6 +86,15 @@ struct VisualBlock
     ImVec2 Pos = ImVec2(0.0f, 0.0f);
     ImVec2 Size = ImVec2(0.0f, 0.0f);
     BlockLayout Layout;
+};
+
+struct VariableSlotContext
+{
+    const BlockRegistry *Registry = nullptr;
+    std::function<void(
+            VisualBlock *target,
+            const std::string &slotKey,
+            Value requiredType)> RequestVariableCreation;
 };
 
 bool IsReporter(const VisualBlock *b);
@@ -120,8 +129,14 @@ public:
     BlockOutline &Right(float dx) { return To(Cursor() + ImVec2(dx, 0.0f)); }
 
     BlockOutline &Tab(float travel, float depth);
-    BlockOutline &RightEdgeMouth(float xRight, float xInner, float yTop, float yBottom,
-        float notchInset, float notchWidth, float notchDepth);
+    BlockOutline &RightEdgeMouth(
+            float xRight,
+            float xInner,
+            float yTop,
+            float yBottom,
+            float notchInset,
+            float notchWidth,
+            float notchDepth);
 
     void Fill(ImDrawList *dl, ImU32 color) const;
     void Stroke(ImDrawList *dl, ImU32 color, float thickness) const;
@@ -130,7 +145,11 @@ public:
     std::vector<ImVec2> Pts;
 };
 
-BlockLayout ComputeBlockLayout(const BlockDefinition &def, VisualBlock &block, const LayoutMetrics &m);
+BlockLayout ComputeBlockLayout(
+        const BlockDefinition &def,
+        VisualBlock &block,
+        const LayoutMetrics &m);
+
 bool DrawBlockLayout(
         ImDrawList *drawList,
         VisualBlock &block,
@@ -140,10 +159,11 @@ bool DrawBlockLayout(
         float fontSize,
         ImU32 textColor,
         bool interactive,
-        Canvas &canvas);
+        const VariableSlotContext &varContext = {});
 
 VisualBlock *GetPluggedArg(VisualBlock &block, const std::string &key);
 
 LiteralValue MakeDefaultLiteral(Value type);
-LiteralValue GetSchemaDefaultLiteral(const BlockDefinition &def, const BlockSchemaItem &item);
 VisualArg MakeDefaultArg(const BlockDefinition &def, const BlockSchemaItem &item);
+
+LiteralValue GetSchemaDefaultLiteral(const BlockDefinition &def, const BlockSchemaItem &item);

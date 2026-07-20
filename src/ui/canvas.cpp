@@ -304,6 +304,14 @@ void Canvas::DrawBlock(ImDrawList *drawList, VisualBlock &block, ImVec2 origin)
 
     bool interactive = (block.Id == HoveredBlockId) || (block.Id == ActiveBlockId);
 
+    VariableSlotContext varContext;
+    varContext.Registry = Registry;
+    varContext.RequestVariableCreation = [this](VisualBlock *target, const std::string &key, Value type)
+    {
+        RequestVariableCreation(target, key, type);
+    };
+
+
     bool stillFocused = DrawBlockLayout(
             drawList,
             block,
@@ -313,7 +321,7 @@ void Canvas::DrawBlock(ImDrawList *drawList, VisualBlock &block, ImVec2 origin)
             fontSize,
             IM_COL32(255, 255, 255, 255),
             interactive,
-            *this);
+            varContext);
 
     if (stillFocused)
         ActiveBlockId = block.Id;
