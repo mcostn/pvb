@@ -541,14 +541,10 @@ void Canvas::DrawSnapPreview(ImDrawList *drawList, ImVec2 origin)
         case SnapType::EnterBody: {
             float bodyTop = FindBodyTop(target, CurrentSnap.Slot);
 
-            ImVec2 tl = WorldToScreen(target.Pos + ImVec2(kBodyIndent, bodyTop), origin);
-            ImVec2 tr = WorldToScreen(target.Pos + ImVec2(target.Size.x - kBodyIndent * 0.5f, bodyTop), origin);
+            ImVec2 p = WorldToScreen(target.Pos + ImVec2(kBodyIndent, bodyTop), origin);
+            float width = (target.Size.x - kBodyIndent) * Zoom;
 
-            drawList->AddRectFilled(
-                    ImVec2(tl.x, tl.y - barThickness * 0.5f),
-                    ImVec2(tr.x, tr.y + barThickness * 0.5f),
-                    kSnapColor,
-                    barThickness * 0.5f);
+            DrawStatementSnapPreview(drawList, p, width, Zoom, kSnapColor);
             break;
         }
 
