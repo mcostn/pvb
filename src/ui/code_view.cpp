@@ -93,15 +93,24 @@ VisualBlock *FindMainBlock(Canvas &canvas)
     return nullptr;
 }
 
-Error BuildProgramFromCanvas(Canvas &canvas, BlockRegistry &registry, Program &outProgram)
+Error BuildProgramFromCanvas(
+        Canvas &canvas,
+        BlockRegistry &registry,
+        Program &outProgram)
 {
+    for (const VariableInfo &var : registry.Variables) {
+        outProgram.Statements.push_back(
+                DeclVar(var.Type, var.Name, nullptr, VarScope::Global));
+    }
+
     for (VisualBlock *root : canvas.Manager.Roots) {
         if (!root->Def || !IsCustomHat(*root->Def))
             continue;
 
         std::unique_ptr<FunctionStmt> fn;
         Error err = BuildCustomFunction(root, registry, fn);
-        FAIL_COND_V_MSG(err != Error::Ok, err,
+        FAIL_COND_V_MSG(
+                err != Error::Ok, err,
                 "Failed to build custom block '{}'",
                 CustomBlockName(*root->Def));
 
@@ -109,12 +118,18 @@ Error BuildProgramFromCanvas(Canvas &canvas, BlockRegistry &registry, Program &o
     }
 
     VisualBlock *mainBlock = FindMainBlock(canvas);
-    FAIL_COND_V_MSG(!mainBlock, Error::Failed, "No 'main' block found on the canvas");
+    FAIL_COND_V_MSG(
+            !mainBlock,
+            Error::Failed,
+            "No 'main' block found on the canvas");
 
     std::vector<std::unique_ptr<BlockInstance>> statements = ConvertVisualChain(mainBlock->Next);
 
     std::unique_ptr<BlockStmt> body = registry.Converter.ConvertBody(statements);
-    FAIL_COND_V_MSG(!body, Error::Failed, "Failed to convert program body to AST");
+    FAIL_COND_V_MSG(
+            !body,
+            Error::Failed,
+            "Failed to convert program body to AST");
 
     for (auto &stmt : body->Statements)
         outProgram.Statements.push_back(std::move(stmt));
