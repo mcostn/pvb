@@ -174,6 +174,21 @@ void BlockManager::DeleteRange(VisualBlock *first, VisualBlock *last)
     if (!first || !last)
         return;
 
+    if (first->ArgOwner) {
+        VisualBlock *owner = first->ArgOwner;
+        std::string key = first->ArgSlot;
+
+        auto argIt = owner->Args.find(key);
+        if (argIt != owner->Args.end()) {
+            const BlockSchemaItem *item = FindSchemaItem(owner->Def, key);
+            argIt->second = (item && owner->Def)
+                ? MakeDefaultArg(*owner->Def, *item)
+                : VisualArg{LiteralValue{std::in_place_type<int>, 0}};
+        }
+
+        return;
+    }
+
     VisualBlock *before = first->Prev;
     VisualBlock *after  = last->Next;
 
@@ -234,10 +249,33 @@ void BlockManager::DeleteAll()
         DeleteRange(root, FindTail(root));
 }
 
+static VisualBlock *FindInPluggedArgs(VisualBlock *block, u32 id)
+{
+    for (auto &[key, arg] : block->Args) {
+        if (auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&arg)) {
+            VisualBlock *child = held->get();
+            if (!child)
+                continue;
+
+            if (child->Id == id)
+                return child;
+
+            if (VisualBlock *hit = FindInPluggedArgs(child, id))
+                return hit;
+        }
+    }
+
+    return nullptr;
+}
+
 VisualBlock *BlockManager::FindBlock(u32 id)
 {
-    for (auto &b : Blocks)
+    for (auto &b : Blocks) {
         if (b->Id == id) return b.get();
+
+        if (VisualBlock *hit = FindInPluggedArgs(b.get(), id))
+            return hit;
+    }
 
     return nullptr;
 }

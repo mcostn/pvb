@@ -624,21 +624,10 @@ void Canvas::HandleContextMenu(ImVec2 origin, bool hovered)
         ContextMenuOnBlock = false;
         ContextMenuBlockId = 0;
 
-        for (auto it = Manager.Blocks.rbegin(); it != Manager.Blocks.rend(); ++it) {
-            VisualBlock &block = **it;
-            ImVec2 topLeft = WorldToScreen(block.Pos, origin);
-            ImVec2 bottomRight = WorldToScreen(block.Pos + block.Size, origin);
-            ImVec2 mouse = ImGui::GetIO().MousePos;
-
-            bool inside = mouse.x >= topLeft.x && mouse.x <= bottomRight.x &&
-                          mouse.y >= topLeft.y && mouse.y <= bottomRight.y;
-            if (!inside)
-                continue;
-
+        if (VisualBlock *hit = HitTest(ImGui::GetIO().MousePos, origin)) {
             ContextMenuOnBlock = true;
-            ContextMenuBlockId = block.Id;
-            SelectedId = block.Id;
-            break;
+            ContextMenuBlockId = hit->Id;
+            SelectedId = hit->Id;
         }
 
         ImGui::OpenPopup("##canvas_context_menu");
