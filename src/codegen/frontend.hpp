@@ -231,8 +231,16 @@ struct LoopStmt : Stmt
     LoopStmt(LoopStmtKind kind) : Stmt(AstNodeKind::LoopStmt), LoopKind(kind) {}
 };
 
+
+enum class VarScope
+{
+    Local,
+    Global,
+};
+
 struct DeclVarStmt : Stmt
 {
+    VarScope Scope;
     Value Type;
     std::string Name;
     std::unique_ptr<Expr> Initializer;
@@ -309,7 +317,11 @@ std::unique_ptr<IfStmt> If(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> the
 std::unique_ptr<ForStmt> For(std::unique_ptr<Stmt> init, std::unique_ptr<Expr> cond, std::unique_ptr<Expr> update, std::unique_ptr<Stmt> body);
 std::unique_ptr<LoopStmt> Continue();
 std::unique_ptr<LoopStmt> Break();
-std::unique_ptr<DeclVarStmt> DeclVar(Value type, std::string name, std::unique_ptr<Expr> init);
+std::unique_ptr<DeclVarStmt> DeclVar(
+        Value type,
+        std::string name,
+        std::unique_ptr<Expr> init,
+        VarScope scope = VarScope::Local);
 
 template<ExprPtr... Ts>
 std::unique_ptr<CallExpr> Call(std::string name, Ts&&... args)

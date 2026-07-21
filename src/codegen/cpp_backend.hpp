@@ -49,4 +49,5 @@ public:
     CppContext Context;
     std::ostringstream Main;
     std::ostringstream Functions;
+    std::ostringstream GlobalVars;
 };

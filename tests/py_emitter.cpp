@@ -261,6 +261,14 @@ CODEGEN_TEST(
 )")
 
 CODEGEN_TEST(
+    DeclGlobal,
+    AST_DeclGlobal,
+    R"(num1 = None
+num2 = None
+
+)")
+
+CODEGEN_TEST(
     BareAssignment,
     AST_BareAssignment,
     R"(x = 0

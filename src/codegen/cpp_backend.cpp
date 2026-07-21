@@ -107,6 +107,14 @@ Error CppEmitter::Visit(const Program &program)
             continue;
         }
 
+        if (stmt->Kind == AstNodeKind::DeclVarStmt) {
+            auto *decl = static_cast<DeclVarStmt*>(stmt.get());
+            if (decl->Scope == VarScope::Global) {
+                TRY(Emit(*stmt));
+                continue;
+            }
+        }
+
         Indent();
         TRY(Emit(*stmt));
         Out() << "\n";
@@ -127,6 +135,11 @@ Error CppEmitter::Visit(const Program &program)
         Out() << "using namespace " << ns << ";\n";
     if (!Context.Includes.empty() || !Context.Namespaces.empty())
         Out() << "\n";
+
+    std::string globals = GlobalVars.str();
+    if (!globals.empty()) {
+        Out() << globals << "\n";
+    }
 
     for (auto &func : Context.FunctionDeclarations)
         Out() << func << ";\n";
@@ -302,6 +315,8 @@ Error CppEmitter::Visit(const LoopStmt &stmt)
 
 Error CppEmitter::Visit(const DeclVarStmt &stmt)
 {
+    if (stmt.Scope == VarScope::Global) PushOut(&GlobalVars);
+
     Out() << ValueToCppType(stmt.Type) << ' ';
     Out() << stmt.Name;
     if (stmt.Initializer) {
@@ -309,6 +324,11 @@ Error CppEmitter::Visit(const DeclVarStmt &stmt)
         TRY(Emit(*stmt.Initializer));
     }
     Out() << ";";
+
+    if (stmt.Scope == VarScope::Global) {
+        Out() << "\n";
+        PopOut();
+    }
 
     return Error::Ok;
 }

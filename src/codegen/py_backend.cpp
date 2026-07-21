@@ -86,6 +86,14 @@ Error PythonEmitter::Visit(const Program &program)
             continue;
         }
 
+        if (stmt->Kind == AstNodeKind::DeclVarStmt) {
+            auto *decl = static_cast<DeclVarStmt*>(stmt.get());
+            if (decl->Scope == VarScope::Global) {
+                TRY(Emit(*stmt));
+                continue;
+            }
+        }
+
         Indent();
         TRY(Emit(stmt));
         Out() << "\n";
@@ -101,6 +109,11 @@ Error PythonEmitter::Visit(const Program &program)
         Out() << "import " << import << "\n";
     if (!sortedImports.empty())
         Out() << "\n";
+
+    std::string globals = GlobalVars.str();
+    if (!globals.empty()) {
+        Out() << globals << "\n";
+    }
 
     std::string func = Functions.str();
     if (!func.empty()) {
@@ -282,6 +295,8 @@ Error PythonEmitter::Visit(const LoopStmt &stmt)
 
 Error PythonEmitter::Visit(const DeclVarStmt &stmt)
 {
+    if (stmt.Scope == VarScope::Global) PushOut(&GlobalVars);
+
     Indent();
     Out() << stmt.Name;
 
@@ -292,6 +307,10 @@ Error PythonEmitter::Visit(const DeclVarStmt &stmt)
         Out() << " = None";
     }
 
+    if (stmt.Scope == VarScope::Global) {
+        Out() << "\n";
+        PopOut();
+    }
     return Error::Ok;
 }
 

@@ -174,9 +174,11 @@ std::unique_ptr<LoopStmt> Break()
 std::unique_ptr<DeclVarStmt> DeclVar(
     Value type,
     std::string name,
-    std::unique_ptr<Expr> init)
+    std::unique_ptr<Expr> init,
+    VarScope scope)
 {
     auto stmt = std::make_unique<DeclVarStmt>(type);
+    stmt->Scope = scope;
     stmt->Name = std::move(name);
     stmt->Initializer = std::move(init);
     return stmt;

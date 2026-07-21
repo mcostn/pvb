@@ -633,6 +633,17 @@ CODEGEN_TEST(
 )")
 
 CODEGEN_TEST(
+    DeclGlobal,
+    AST_DeclGlobal,
+    R"(int num1;
+int num2;
+
+int main()
+{
+}
+)")
+
+CODEGEN_TEST(
     BareAssignment,
     AST_BareAssignment,
     R"(int main()

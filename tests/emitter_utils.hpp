@@ -347,6 +347,12 @@ std::string Generate(const Program &program)
         DeclVar(VAL_BOOL, "flag", Bool(true)) \
     )
 
+#define AST_DeclGlobal \
+    MakeProgram( \
+        DeclVar(VAL_INT, "num1", nullptr, VarScope::Global), \
+        DeclVar(VAL_INT, "num2", nullptr, VarScope::Global) \
+    )
+
 #define AST_BareAssignment \
     MakeProgram( \
         DeclVar(VAL_INT, "x", Int(0)), \
