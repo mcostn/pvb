@@ -32,5 +32,6 @@ const BlockDefinition *FindDefinitionByOpCode(const BlockRegistry &registry, con
 
 Error RegisterCustomBlock(BlockRegistry &registry, const CustomBlockSpec &spec);
 Error UnregisterCustomBlock(BlockRegistry &registry, const std::string &name);
+Error RenameCustomBlock(BlockRegistry &registry, const std::string &oldName, const std::string &newName);
 bool IsCustomBlockRegistered(const BlockRegistry &registry, const std::string &name);
 std::vector<const BlockDefinition *> CustomBlockParamDefs(const BlockRegistry &registry, const std::string &funcName);

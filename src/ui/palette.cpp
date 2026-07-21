@@ -43,8 +43,7 @@ bool BlockPalette::Matches(const BlockDefinition &def) const
 void BlockPalette::DrawBlockPreview(
     Canvas &canvas,
     const BlockDefinition &def,
-    const char *deleteLabel,
-    std::function<void()> onDelete)
+    const std::vector<BlockContextAction> &contextActions)
 {
     ImGui::PushID(&def);
 
@@ -81,9 +80,11 @@ void BlockPalette::DrawBlockPreview(
         canvas.EditorRef->BeginPaletteDrag(def);
     }
 
-    if (deleteLabel && ImGui::BeginPopupContextItem("##block_ctx_menu")) {
-        if (ImGui::MenuItem(deleteLabel) && onDelete)
-            onDelete();
+    if (!contextActions.empty() && ImGui::BeginPopupContextItem("##block_ctx_menu")) {
+        for (const BlockContextAction &action : contextActions) {
+            if (ImGui::MenuItem(action.Label.c_str()) && action.Action)
+                action.Action();
+        }
         ImGui::EndPopup();
     }
 
@@ -133,6 +134,7 @@ void BlockPalette::DrawCategorySection(Canvas &canvas, BlockRegistry &registry, 
 
 void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
 {
+    ImGui::Separator();
     ImGui::TextUnformatted("Variables");
 
     float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
@@ -140,8 +142,6 @@ void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
     if (ImGui::Button("Make a Variable", ImVec2(fieldWidth, 0.0f))) {
         canvas.RequestVariableCreation(nullptr, "", VAL_ANY);
     }
-
-    ImGui::Separator();
 
     for (auto &def : registry.Definitions) {
         if (def.Category != BlockCategory::Variable)
@@ -154,23 +154,24 @@ void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
             continue;
 
         std::string deleteLabel = "Delete variable '" + varName + "'";
-        DrawBlockPreview(canvas, def, deleteLabel.c_str(), [&canvas, varName]() {
-            canvas.DeleteVariable(varName);
+        std::string renameLabel = "Rename variable '" + varName + "'";
+        DrawBlockPreview(canvas, def, {
+            { renameLabel, [&canvas, varName]() { canvas.RequestVariableRename(varName); } },
+            { deleteLabel, [&canvas, varName]() { canvas.DeleteVariable(varName); } },
         });
     }
 }
 
 void BlockPalette::DrawCustomSection(Canvas &canvas, BlockRegistry &registry)
 {
+    ImGui::Separator();
     ImGui::TextUnformatted("My Blocks");
 
     float fieldWidth = Width - ImGui::GetStyle().WindowPadding.x * 2.0f;
 
-    if (ImGui::Button("Create a Block", ImVec2(fieldWidth, 0.0f))) {
+    if (ImGui::Button("Make a Block", ImVec2(fieldWidth, 0.0f))) {
         canvas.RequestCustomBlockCreation();
     }
-
-    ImGui::Separator();
 
     for (auto &def : registry.Definitions) {
         if (def.Category != BlockCategory::Custom)
@@ -185,8 +186,10 @@ void BlockPalette::DrawCustomSection(Canvas &canvas, BlockRegistry &registry)
             continue;
 
         std::string deleteLabel = "Delete block '" + blockName + "'";
-        DrawBlockPreview(canvas, def, deleteLabel.c_str(), [&canvas, blockName]() {
-            canvas.DeleteCustomBlock(blockName);
+        std::string renameLabel = "Rename block '" + blockName + "'";
+        DrawBlockPreview(canvas, def, {
+            { renameLabel, [&canvas, blockName]() { canvas.RequestCustomBlockRename(blockName); } },
+            { deleteLabel, [&canvas, blockName]() { canvas.DeleteCustomBlock(blockName); } },
         });
 
         std::vector<const BlockDefinition *> params =
@@ -227,10 +230,7 @@ void BlockPalette::Draw(
     for (BlockCategory category : kCategoryOrder)
         DrawCategorySection(canvas, registry, category);
 
-    ImGui::Separator();
     DrawVariableSection(canvas, registry);
-
-    ImGui::Separator();
     DrawCustomSection(canvas, registry);
 
     ImGui::EndChild();

@@ -21,6 +21,7 @@ class BlockRegistry
 
         Error AddVariable(const std::string &name, Value type);
         Error RemoveVariable(const std::string &name);
+        Error RenameVariable(const std::string &oldName, const std::string &newName);
         bool HasVariable(const std::string &name) const;
 
         std::deque<BlockDefinition> Definitions;

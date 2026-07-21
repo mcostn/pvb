@@ -183,3 +183,91 @@ Error UnregisterCustomBlock(BlockRegistry &registry, const std::string &name)
 
     return Error::Ok;
 }
+
+Error RenameCustomBlock(BlockRegistry &registry, const std::string &oldName, const std::string &newName)
+{
+    if (newName.empty())
+        return Error::Failed;
+
+    if (!IsCustomBlockRegistered(registry, oldName))
+        return Error::Failed;
+
+    if (newName == oldName)
+        return Error::Ok;
+
+    if (IsCustomBlockRegistered(registry, newName) ||
+        FindDefinitionByOpCode(registry, CustomCallOpCode(newName)) ||
+        FindDefinitionByOpCode(registry, CustomHatOpCode(newName)))
+        return Error::BlockAlreadyExists;
+
+    const std::string oldCallOp = CustomCallOpCode(oldName);
+    const std::string oldHatOp = CustomHatOpCode(oldName);
+    const std::string oldParamPrefix = std::string(kParamPrefix) + oldName + ":";
+
+    BlockDefinition *callDef = nullptr;
+    BlockDefinition *hatDef = nullptr;
+    std::vector<BlockDefinition *> paramDefs;
+
+    for (BlockDefinition &def : registry.Definitions) {
+        if (def.OpCode == oldCallOp)
+            callDef = &def;
+        else if (def.OpCode == oldHatOp)
+            hatDef = &def;
+        else if (def.OpCode.rfind(oldParamPrefix, 0) == 0)
+            paramDefs.push_back(&def);
+    }
+
+    if (!callDef || !hatDef)
+        return Error::Failed;
+
+    const std::string newCallOp = CustomCallOpCode(newName);
+    const std::string newHatOp = CustomHatOpCode(newName);
+
+    CustomBlockSpec renamedSpec;
+    renamedSpec.Name = newName;
+    renamedSpec.Description = callDef->Description;
+
+    if (!callDef->Schema.empty())
+        callDef->Schema[0].Name = newName;
+
+    std::string callFmt = newName;
+    for (const BlockSchemaItem &item : callDef->Schema) {
+        if (item.Type == BlockSchemaType::Input) {
+            callFmt += " " + item.Name;
+            renamedSpec.Params.push_back({ item.Name, item.ValueType });
+        }
+    }
+    callDef->Fmt = callFmt;
+    callDef->OpCode = newCallOp;
+    callDef->StmtBuilder = MakeCustomCallStmtBuilder(renamedSpec);
+
+    registry.Converter.StmtBuilders.erase(oldCallOp);
+    registry.Converter.StmtBuilders.emplace(newCallOp, callDef->StmtBuilder);
+
+    std::string defineLabel = "Define \"" + newName + "\"";
+    if (!hatDef->Schema.empty())
+        hatDef->Schema[0].Name = defineLabel;
+
+    std::string hatFmt = defineLabel;
+    for (size_t i = 1; i < hatDef->Schema.size(); ++i)
+        hatFmt += " " + hatDef->Schema[i].Name;
+    hatDef->Fmt = hatFmt;
+    hatDef->OpCode = newHatOp;
+
+    for (BlockDefinition *paramDef : paramDefs) {
+        std::string paramName = paramDef->OpCode.substr(oldParamPrefix.size());
+        std::string newParamOp = CustomParamOpCode(newName, paramName);
+
+        paramDef->Description = "Parameter of \"" + newName + "\"";
+
+        registry.Converter.ExprBuilders.erase(paramDef->OpCode);
+        paramDef->OpCode = newParamOp;
+        registry.Converter.ExprBuilders.emplace(newParamOp, paramDef->ExprBuilder);
+    }
+
+    auto nameIt = std::find(registry.CustomBlocks.begin(), registry.CustomBlocks.end(), oldName);
+    if (nameIt != registry.CustomBlocks.end())
+        *nameIt = newName;
+
+    return Error::Ok;
+}

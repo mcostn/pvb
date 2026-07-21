@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "util/error.hpp"
 #include "ui/imgui.hpp"
 #include "ui/block.hpp"
 #include "ui/block_manager.hpp"
@@ -105,6 +106,19 @@ public:
     void DrawCreateVariablePopup(BlockRegistry &registry);
     void DeleteVariable(const std::string &name);
 
+    struct PendingVariableRename
+    {
+        bool Requested = false;
+        std::string OldName;
+    };
+    PendingVariableRename VarRenameRequest;
+    char RenameVarNameBuf[64] = "";
+    std::string RenameVarError;
+
+    void RequestVariableRename(const std::string &name);
+    void DrawRenameVariablePopup(BlockRegistry &registry);
+    Error RenameVariable(const std::string &oldName, const std::string &newName);
+
     struct CustomParamEdit
     {
         char NameBuf[64] = "";
@@ -120,6 +134,19 @@ public:
     void RequestCustomBlockCreation();
     void DrawCreateCustomBlockPopup(BlockRegistry &registry);
     void DeleteCustomBlock(const std::string &name);
+
+    struct PendingCustomBlockRename
+    {
+        bool Requested = false;
+        std::string OldName;
+    };
+    PendingCustomBlockRename CustomRenameRequest;
+    char RenameCustomNameBuf[64] = "";
+    std::string RenameCustomError;
+
+    void RequestCustomBlockRename(const std::string &name);
+    void DrawRenameCustomBlockPopup(BlockRegistry &registry);
+    Error RenameCustomBlock(const std::string &oldName, const std::string &newName);
 };
 
 BlockOutline BuildOutline(const VisualBlock &block, ImVec2 topLeft, float zoom);

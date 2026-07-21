@@ -150,6 +150,96 @@ Error BlockRegistry::RemoveVariable(const std::string &name)
     return Error::Ok;
 }
 
+Error BlockRegistry::RenameVariable(const std::string &oldName, const std::string &newName)
+{
+    FAIL_COND_V_MSG(
+            newName.empty(),
+            Error::BlockInvalidDefinition,
+            "Variable name cannot be empty");
+
+    auto it = std::find_if(
+            Variables.begin(),
+            Variables.end(),
+            [&](const VariableInfo &v) { return v.Name == oldName; });
+
+    FAIL_COND_V_MSG(
+            it == Variables.end(),
+            Error::Failed,
+            "Tried to rename variable '{}', which doesn't exist",
+            oldName);
+
+    if (newName == oldName)
+        return Error::Ok;
+
+    FAIL_COND_V_MSG(
+            HasVariable(newName),
+            Error::BlockAlreadyExists,
+            "A variable named '{}' already exists",
+            newName);
+
+    Value type = it->Type;
+
+    std::string typeStr;
+    switch (type) {
+        case VAL_INT:    typeStr = "int";    break;
+        case VAL_FLOAT:  typeStr = "float";  break;
+        case VAL_BOOL:   typeStr = "bool";   break;
+        case VAL_STRING: typeStr = "string"; break;
+        default:
+            GlobalLogger.Error("Variable '{}' has an unsupported type", oldName);
+            return Error::BlockInvalidDefinition;
+    }
+
+    const std::string oldGetOp = VarGetOpCode(oldName);
+    const std::string oldSetOp = VarSetOpCode(oldName);
+    const std::string newGetOp = VarGetOpCode(newName);
+    const std::string newSetOp = VarSetOpCode(newName);
+
+    BlockDefinition *getDef = nullptr;
+    BlockDefinition *setDef = nullptr;
+
+    for (BlockDefinition &def : Definitions) {
+        if (def.OpCode == oldGetOp) getDef = &def;
+        else if (def.OpCode == oldSetOp) setDef = &def;
+    }
+
+    FAIL_COND_V_MSG(
+            !getDef || !setDef,
+            Error::Failed,
+            "Couldn't find block definitions for variable '{}'",
+            oldName);
+
+    getDef->OpCode = newGetOp;
+    getDef->Fmt = newName;
+    getDef->Description = "Gets the value of '" + newName + "'";
+    getDef->ExprBuilder = [newName, type](BlockConverter &c, const BlockInstance &b) {
+        DISCARD(c);
+        DISCARD(b);
+        return Var(newName, type);
+    };
+
+    setDef->OpCode = newSetOp;
+    setDef->Fmt = "Set " + newName + " to {" + typeStr + ":value=}";
+    setDef->Description = "Sets the value of '" + newName + "'";
+    setDef->StmtBuilder = [newName, type](BlockConverter &c, const BlockInstance &b) {
+        return ExprStatement(Assign(newName, c.ResolveArg(b.Args.at("value"), type)));
+    };
+
+    getDef->Schema.clear();
+    TRY(GenerateBlockSchema(*getDef));
+    setDef->Schema.clear();
+    TRY(GenerateBlockSchema(*setDef));
+
+    Converter.ExprBuilders.erase(oldGetOp);
+    Converter.StmtBuilders.erase(oldSetOp);
+    Converter.ExprBuilders.emplace(newGetOp, getDef->ExprBuilder);
+    Converter.StmtBuilders.emplace(newSetOp, setDef->StmtBuilder);
+
+    it->Name = newName;
+
+    return Error::Ok;
+}
+
 BlockRegistry GetBlockRegistry()
 {
     BlockRegistry out;

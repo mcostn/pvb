@@ -1,10 +1,17 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <functional>
 
 #include "ui/canvas.hpp"
 #include "block/registry.hpp"
+
+struct BlockContextAction
+{
+    std::string Label;
+    std::function<void()> Action;
+};
 
 class BlockPalette
 {
@@ -23,8 +30,7 @@ public:
     void DrawBlockPreview(
             Canvas &canvas,
             const BlockDefinition &def,
-            const char *deleteLabel = nullptr,
-            std::function<void()> onDelete = {});
+            const std::vector<BlockContextAction> &contextActions = {});
     void DrawCategorySection(Canvas &canvas, BlockRegistry &registry, BlockCategory category);
     void DrawVariableSection(Canvas &canvas, BlockRegistry &registry);
     void DrawCustomSection(Canvas &canvas, BlockRegistry &registry);

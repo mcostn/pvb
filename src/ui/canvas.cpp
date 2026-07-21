@@ -1,6 +1,7 @@
 #include <cmath>
 #include <algorithm>
 #include <functional>
+#include <cstdio>
 
 #include "ui/canvas.hpp"
 #include "ui/const.hpp"
@@ -128,6 +129,8 @@ void Canvas::Draw(const char *strId, ImVec2 size)
     if (Registry) {
         DrawCreateVariablePopup(*Registry);
         DrawCreateCustomBlockPopup(*Registry);
+        DrawRenameVariablePopup(*Registry);
+        DrawRenameCustomBlockPopup(*Registry);
     }
 }
 
@@ -1159,6 +1162,23 @@ static void ClearVariableRefs(VisualBlock *block, const std::string &name)
     }
 }
 
+static void RenameVariableRefs(VisualBlock *block, const std::string &oldName, const std::string &newName)
+{
+    if (!block)
+        return;
+
+    for (auto &[key, arg] : block->Args) {
+        if (auto *ref = std::get_if<VariableRef>(&arg)) {
+            if (ref->Name == oldName)
+                ref->Name = newName;
+            continue;
+        }
+
+        if (auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&arg))
+            RenameVariableRefs(held->get(), oldName, newName);
+    }
+}
+
 void Canvas::DeleteVariable(const std::string &name)
 {
     if (!Registry || !Registry->HasVariable(name))
@@ -1182,6 +1202,21 @@ void Canvas::DeleteVariable(const std::string &name)
         Manager.DeleteBlock(block);
 
     DISCARD(Registry->RemoveVariable(name));
+}
+
+Error Canvas::RenameVariable(const std::string &oldName, const std::string &newName)
+{
+    if (!Registry)
+        return Error::Failed;
+
+    Error err = Registry->RenameVariable(oldName, newName);
+    if (err != Error::Ok)
+        return err;
+
+    for (auto &blockPtr : Manager.Blocks)
+        RenameVariableRefs(blockPtr.get(), oldName, newName);
+
+    return Error::Ok;
 }
 
 void Canvas::RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType)
@@ -1290,6 +1325,75 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
     if (cancelClicked) {
         NewVarError.clear();
         VarCreateRequest = PendingVariableCreate{};
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+}
+
+void Canvas::RequestVariableRename(const std::string &name)
+{
+    VarRenameRequest.Requested = true;
+    VarRenameRequest.OldName = name;
+
+    std::snprintf(RenameVarNameBuf, sizeof(RenameVarNameBuf), "%s", name.c_str());
+    RenameVarError.clear();
+}
+
+void Canvas::DrawRenameVariablePopup(BlockRegistry &registry)
+{
+    if (VarRenameRequest.Requested) {
+        ImGui::OpenPopup("##canvas_rename_variable_popup");
+        VarRenameRequest.Requested = false;
+    }
+
+    if (!ImGui::BeginPopup("##canvas_rename_variable_popup"))
+        return;
+
+    constexpr float PopupFieldWidth = 220.0f;
+
+    ImGui::TextUnformatted("Rename Variable");
+    ImGui::Separator();
+
+    ImGui::SetNextItemWidth(PopupFieldWidth);
+    if (ImGui::IsWindowAppearing()) {
+        ImGui::SetKeyboardFocusHere(0);
+    }
+    bool enterPressed = ImGui::InputTextWithHint(
+            "##rename_var_name",
+            "name",
+            RenameVarNameBuf,
+            sizeof(RenameVarNameBuf),
+            ImGuiInputTextFlags_EnterReturnsTrue);
+
+    if (!RenameVarError.empty()) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", RenameVarError.c_str());
+        ImGui::PopTextWrapPos();
+    }
+
+    bool renameClicked = ImGui::Button("Rename", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    ImGui::SameLine();
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+
+    if (renameClicked || enterPressed) {
+        std::string newName(RenameVarNameBuf);
+        Error err = RenameVariable(VarRenameRequest.OldName, newName);
+
+        if (err == Error::Ok) {
+            RenameVarError.clear();
+            VarRenameRequest = PendingVariableRename{};
+            ImGui::CloseCurrentPopup();
+        } else if (err == Error::BlockAlreadyExists) {
+            RenameVarError = "A variable named '" + newName + "' already exists";
+        } else {
+            RenameVarError = "Couldn't rename variable to '" + newName + "'";
+        }
+    }
+
+    if (cancelClicked) {
+        RenameVarError.clear();
+        VarRenameRequest = PendingVariableRename{};
         ImGui::CloseCurrentPopup();
     }
 
@@ -1461,6 +1565,83 @@ void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
     if (cancelClicked) {
         NewCustomError.clear();
         NewCustomParams.clear();
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+}
+
+Error Canvas::RenameCustomBlock(const std::string &oldName, const std::string &newName)
+{
+    if (!Registry)
+        return Error::Failed;
+
+    return ::RenameCustomBlock(*Registry, oldName, newName);
+}
+
+void Canvas::RequestCustomBlockRename(const std::string &name)
+{
+    CustomRenameRequest.Requested = true;
+    CustomRenameRequest.OldName = name;
+
+    std::snprintf(RenameCustomNameBuf, sizeof(RenameCustomNameBuf), "%s", name.c_str());
+    RenameCustomError.clear();
+}
+
+void Canvas::DrawRenameCustomBlockPopup(BlockRegistry &registry)
+{
+    if (CustomRenameRequest.Requested) {
+        ImGui::OpenPopup("##canvas_rename_custom_block_popup");
+        CustomRenameRequest.Requested = false;
+    }
+
+    if (!ImGui::BeginPopup("##canvas_rename_custom_block_popup"))
+        return;
+
+    constexpr float PopupFieldWidth = 220.0f;
+
+    ImGui::TextUnformatted("Rename Block");
+    ImGui::Separator();
+
+    ImGui::SetNextItemWidth(PopupFieldWidth);
+    if (ImGui::IsWindowAppearing()) {
+        ImGui::SetKeyboardFocusHere(0);
+    }
+    bool enterPressed = ImGui::InputTextWithHint(
+            "##rename_custom_block_name",
+            "block name",
+            RenameCustomNameBuf,
+            sizeof(RenameCustomNameBuf),
+            ImGuiInputTextFlags_EnterReturnsTrue);
+
+    if (!RenameCustomError.empty()) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", RenameCustomError.c_str());
+        ImGui::PopTextWrapPos();
+    }
+
+    bool renameClicked = ImGui::Button("Rename", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    ImGui::SameLine();
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+
+    if (renameClicked || enterPressed) {
+        std::string newName(RenameCustomNameBuf);
+        Error err = RenameCustomBlock(CustomRenameRequest.OldName, newName);
+
+        if (err == Error::Ok) {
+            RenameCustomError.clear();
+            CustomRenameRequest = PendingCustomBlockRename{};
+            ImGui::CloseCurrentPopup();
+        } else if (err == Error::BlockAlreadyExists) {
+            RenameCustomError = "A block named '" + newName + "' already exists";
+        } else {
+            RenameCustomError = "Couldn't rename block to '" + newName + "'";
+        }
+    }
+
+    if (cancelClicked) {
+        RenameCustomError.clear();
+        CustomRenameRequest = PendingCustomBlockRename{};
         ImGui::CloseCurrentPopup();
     }
 
