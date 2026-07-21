@@ -1,8 +1,36 @@
 #include "util/ini.hpp"
 
 #include <fstream>
+#include <sstream>
 
 #include "util/macro.hpp"
+
+bool IniSection::HasValue(const std::string &Key) const
+{
+    return GetValue(Key) != nullptr;
+}
+
+const std::string *IniSection::GetValue(const std::string &Key) const
+{
+    for (const IniValue &V : Values) {
+        if (V.Key == Key)
+            return &V.Value;
+    }
+
+    return nullptr;
+}
+
+void IniSection::SetValue(const std::string &Key, const std::string &Value)
+{
+    for (IniValue &V : Values) {
+        if (V.Key == Key) {
+            V.Value = Value;
+            return;
+        }
+    }
+
+    Values.push_back(IniValue{ Key, Value });
+}
 
 Error IniFile::Load(const std::string &Path, IniFile &Out)
 {
@@ -26,7 +54,7 @@ Error IniFile::Parse(const std::string &Text, IniFile &Out)
     std::stringstream Stream(Text);
 
     std::string Line;
-    std::string CurrentSection;
+    IniSection *CurrentSection = nullptr;
 
     while (std::getline(Stream, Line)) {
         Line = Trim(Line);
@@ -38,8 +66,8 @@ Error IniFile::Parse(const std::string &Text, IniFile &Out)
             continue;
 
         if (Line.front() == '[' && Line.back() == ']') {
-            CurrentSection = Line.substr(1, Line.size() - 2);
-            Out.Sections.emplace(CurrentSection, Section{});
+            std::string Name = Line.substr(1, Line.size() - 2);
+            CurrentSection = &Out.GetOrCreateSection(Name);
             continue;
         }
 
@@ -50,10 +78,15 @@ Error IniFile::Parse(const std::string &Text, IniFile &Out)
             "Malformed INI line '{}'",
             Line);
 
+        FAIL_COND_V_MSG(!CurrentSection,
+            Error::IniParseError,
+            "Key/value pair '{}' appears before any [section]",
+            Line);
+
         std::string Key = Trim(Line.substr(0, Equal));
         std::string Value = Unescape(Line.substr(Equal + 1));
 
-        Out.Sections[CurrentSection][Key] = Value;
+        CurrentSection->SetValue(Key, Value);
     }
 
     return Error::Ok;
@@ -82,15 +115,15 @@ std::string IniFile::Serialize() const
 {
     std::string Result;
 
-    for (const auto &SectionPair : Sections) {
+    for (const IniSection &Section : Sections) {
         Result += "[";
-        Result += SectionPair.first;
+        Result += Section.Name;
         Result += "]\n";
 
-        for (const auto &ValuePair : SectionPair.second) {
-            Result += ValuePair.first;
+        for (const IniValue &Value : Section.Values) {
+            Result += Value.Key;
             Result += "=";
-            Result += Escape(ValuePair.second);
+            Result += Escape(Value.Value);
             Result += "\n";
         }
 
@@ -102,38 +135,60 @@ std::string IniFile::Serialize() const
 
 bool IniFile::HasSection(const std::string &Name) const
 {
-    return Sections.find(Name) != Sections.end();
+    return FindSection(Name) != nullptr;
+}
+
+IniSection *IniFile::FindSection(const std::string &Name)
+{
+    for (IniSection &Section : Sections) {
+        if (Section.Name == Name)
+            return &Section;
+    }
+
+    return nullptr;
+}
+
+const IniSection *IniFile::FindSection(const std::string &Name) const
+{
+    for (const IniSection &Section : Sections) {
+        if (Section.Name == Name)
+            return &Section;
+    }
+
+    return nullptr;
+}
+
+IniSection &IniFile::GetOrCreateSection(const std::string &Name)
+{
+    if (IniSection *Existing = FindSection(Name))
+        return *Existing;
+
+    Sections.push_back(IniSection{ Name, {} });
+    return Sections.back();
 }
 
 bool IniFile::HasValue(const std::string &SectionName,
                        const std::string &Key) const
 {
-    auto SectionIt = Sections.find(SectionName);
-    if (SectionIt == Sections.end())
-        return false;
-
-    return SectionIt->second.find(Key) != SectionIt->second.end();
+    const IniSection *Section = FindSection(SectionName);
+    return Section && Section->HasValue(Key);
 }
 
 const std::string *IniFile::GetValue(const std::string &SectionName,
                                      const std::string &Key) const
 {
-    auto SectionIt = Sections.find(SectionName);
-    if (SectionIt == Sections.end())
+    const IniSection *Section = FindSection(SectionName);
+    if (!Section)
         return nullptr;
 
-    auto ValueIt = SectionIt->second.find(Key);
-    if (ValueIt == SectionIt->second.end())
-        return nullptr;
-
-    return &ValueIt->second;
+    return Section->GetValue(Key);
 }
 
 void IniFile::SetValue(const std::string &SectionName,
                        const std::string &Key,
                        const std::string &Value)
 {
-    Sections[SectionName][Key] = Value;
+    GetOrCreateSection(SectionName).SetValue(Key, Value);
 }
 
 std::string IniFile::Trim(const std::string &Text)
