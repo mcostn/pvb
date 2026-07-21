@@ -126,13 +126,8 @@ Error RegisterCustomBlock(BlockRegistry &registry, const CustomBlockSpec &spec)
     hat.Description = spec.Description;
 
     std::string defineLabel = "Define \"" + spec.Name + "\"";
-    std::string hatFmt = defineLabel;
     hat.Schema.push_back({ defineLabel, VAL_NONE, BlockSchemaType::Text });
-    for (const CustomBlockParam &p : spec.Params) {
-        hat.Schema.push_back({ p.Name, p.Type, BlockSchemaType::Text });
-        hatFmt += " " + p.Name;
-    }
-    hat.Fmt = hatFmt;
+    hat.Fmt = defineLabel;
 
     registry.Definitions.push_back(std::move(call));
     registry.Definitions.push_back(std::move(hat));
