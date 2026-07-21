@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/registry.hpp"
+#include "build/runner.hpp"
 #include "ui/canvas.hpp"
 #include "ui/palette.hpp"
 #include "ui/code_view.hpp"
@@ -66,4 +67,17 @@ public:
     CodeLanguage Language = CodeLanguage::Python;
     bool ShowCodeView = false;
     void GenerateCode();
+
+    bool ShowOutputPanel = false;
+    float OutputPanelHeight = 180.0f;
+    std::string OutputTitle;
+    std::string OutputText;
+    bool OutputScrollToBottom = false;
+    void ShowBuildResult(const std::string &title, const BuildResult &result);
+    void SetOutput(const std::string &title, const std::string &text);
+    void DrawMainContent(const ImVec2 &size);
+    void DrawOutputPanel(const ImVec2 &size);
+    void CompileProject();
+    void RunProject();
+    void CompileAndRunProject();
 };

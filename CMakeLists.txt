@@ -68,6 +68,9 @@ add_library(
     "src/codegen/cpp_backend.cpp"
     "src/codegen/py_backend.cpp"
     "src/codegen/frontend.cpp"
+    "src/build/process.cpp"
+    "src/build/toolchain.cpp"
+    "src/build/runner.cpp"
     "src/util/ini.cpp"
 )
 target_include_directories(

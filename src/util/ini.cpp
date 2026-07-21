@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+#include "util/macro.hpp"
+
 Error IniFile::Load(const std::string &Path, IniFile &Out)
 {
     std::ifstream File(Path);

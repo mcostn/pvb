@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "codegen/language.hpp"
+
 #include "TextEditor.h"
 
 #include "ui/imgui.hpp"
@@ -17,12 +19,6 @@ std::vector<std::unique_ptr<BlockInstance>> ConvertVisualChain(VisualBlock *head
 VisualBlock *FindMainBlock(Canvas &canvas);
 
 Error BuildProgramFromCanvas(Canvas &canvas, BlockRegistry &registry, Program &outProgram);
-
-enum class CodeLanguage
-{
-    Cpp,
-    Python,
-};
 
 class CodeView
 {

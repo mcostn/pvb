@@ -30,6 +30,11 @@ enum class [[nodiscard]] Error
     BlockInvalidFmt,
     BlockInvalidDefinition,
     BlockAlreadyExists,
+
+    BuildToolNotFound,
+    BuildWriteFailed,
+    BuildCompileFailed,
+    BuildRunFailed,
 };
 
 [[nodiscard]]
@@ -57,6 +62,11 @@ inline const char *to_string(Error err)
         case Error::BlockInvalidFmt: return "Invalid block format";
         case Error::BlockInvalidDefinition: return "Unknown block definition";
         case Error::BlockAlreadyExists: return "Block already exists";
+
+        case Error::BuildToolNotFound: return "Required build tool not found";
+        case Error::BuildWriteFailed: return "Failed to write build artifacts";
+        case Error::BuildCompileFailed: return "Compilation failed";
+        case Error::BuildRunFailed: return "Program execution failed";
     }
 
     return "Unknown error";

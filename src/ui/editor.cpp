@@ -4,7 +4,9 @@
 
 #include "ImGuiFileDialog.h"
 
+#include <algorithm>
 #include <iostream>
+#include <sstream>
 
 
 Editor::Editor(BlockRegistry registry)
@@ -33,35 +35,28 @@ void Editor::Draw()
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    if (ShowPalette) {
-        float height = ImGui::GetContentRegionAvail().y;
-        Palette.Draw(CanvasView, Registry, "palette", height);
-        ImGui::SameLine();
-    }
+    ImVec2 avail = ImGui::GetContentRegionAvail();
 
-    if (ShowCodeView) {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
+    if (ShowOutputPanel) {
+        constexpr float SplitterHeight = 4.0f;
+        OutputPanelHeight = std::clamp(OutputPanelHeight, 80.0f, avail.y * 0.6f);
 
-        constexpr ImGuiTableFlags flags =
-            ImGuiTableFlags_Resizable |
-            ImGuiTableFlags_BordersInnerV;
+        const float mainHeight = avail.y - OutputPanelHeight - SplitterHeight;
+        DrawMainContent(ImVec2(avail.x, mainHeight));
 
-        if (ImGui::BeginTable("##canvas_code_split", 2, flags, avail)) {
-            ImGui::TableSetupColumn("Canvas", ImGuiTableColumnFlags_WidthStretch, 0.65f);
-            ImGui::TableSetupColumn("Code", ImGuiTableColumnFlags_WidthStretch, 0.35f);
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_Separator));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_SeparatorHovered));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_SeparatorActive));
+        ImGui::Button("##output_splitter", ImVec2(-1.0f, SplitterHeight));
+        if (ImGui::IsItemActive())
+            OutputPanelHeight -= ImGui::GetIO().MouseDelta.y;
+        ImGui::PopStyleColor(3);
+        if (ImGui::IsItemHovered())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 
-            ImGui::TableNextRow(ImGuiTableRowFlags_None, avail.y);
-
-            ImGui::TableSetColumnIndex(0);
-            CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
-
-            ImGui::TableSetColumnIndex(1);
-            Code.Draw("codeview", ImGui::GetContentRegionAvail());
-
-            ImGui::EndTable();
-        }
+        DrawOutputPanel(ImVec2(avail.x, OutputPanelHeight));
     } else {
-        CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+        DrawMainContent(avail);
     }
 
     ImGui::End();
@@ -132,14 +127,8 @@ void Editor::DrawMenuBar()
             GenerateCode();
         }
 
-        if (ImGui::MenuItem("Compile")) {
-            GenerateCode();
-        }
-
         if (ImGui::MenuItem("Run")) {
-        }
-
-        if (ImGui::MenuItem("Compile and Run")) {
+            CompileAndRunProject();
         }
 
         ImGui::EndMenu();
@@ -156,6 +145,7 @@ void Editor::DrawMenuBar()
     if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Palette", nullptr, &ShowPalette);
         ImGui::MenuItem("Generated Code", nullptr, &ShowCodeView);
+        ImGui::MenuItem("Output", nullptr, &ShowOutputPanel);
         ImGui::MenuItem("Debug", nullptr, &CanvasView.ShowDebugWindow);
 
         ImGui::EndMenu();
@@ -364,6 +354,131 @@ void Editor::GenerateCode()
     } else {
         Notify("Code generation failed: " + std::string(to_string(err)), true);
     }
+}
+
+static std::string BuildResultSummary(const BuildResult &result)
+{
+    std::ostringstream summary;
+    summary << to_string(result.Status);
+
+    if (result.Tool)
+        summary << " (" << result.Tool->Command << ")";
+
+    if (result.ExitCode != 0)
+        summary << " [exit " << result.ExitCode << "]";
+
+    return summary.str();
+}
+
+void Editor::ShowBuildResult(const std::string &title, const BuildResult &result)
+{
+    std::string text = result.Output;
+
+    if (text.empty()) text = BuildResultSummary(result);
+    else if (result.Status != Error::Ok) text = BuildResultSummary(result) + "\n\n" + text;
+
+    SetOutput(title, text);
+
+    if (result.Status == Error::Ok) Notify(title + " succeeded");
+    else Notify(title + " failed: " + std::string(to_string(result.Status)), true);
+}
+
+void Editor::SetOutput(const std::string &title, const std::string &text)
+{
+    OutputTitle = title;
+    OutputText = text;
+    ShowOutputPanel = true;
+    OutputScrollToBottom = true;
+}
+
+void Editor::DrawMainContent(const ImVec2 &size)
+{
+    ImGui::BeginChild("##main_content", size, false, ImGuiWindowFlags_NoScrollbar);
+
+    if (ShowPalette) {
+        float height = ImGui::GetContentRegionAvail().y;
+        Palette.Draw(CanvasView, Registry, "palette", height);
+        ImGui::SameLine();
+    }
+
+    if (ShowCodeView) {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+
+        constexpr ImGuiTableFlags flags =
+            ImGuiTableFlags_Resizable |
+            ImGuiTableFlags_BordersInnerV;
+
+        if (ImGui::BeginTable("##canvas_code_split", 2, flags, avail)) {
+            ImGui::TableSetupColumn("Canvas", ImGuiTableColumnFlags_WidthStretch, 0.65f);
+            ImGui::TableSetupColumn("Code", ImGuiTableColumnFlags_WidthStretch, 0.35f);
+
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, avail.y);
+
+            ImGui::TableSetColumnIndex(0);
+            CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+
+            ImGui::TableSetColumnIndex(1);
+            Code.Draw("codeview", ImGui::GetContentRegionAvail());
+
+            ImGui::EndTable();
+        }
+    } else {
+        CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+    }
+
+    ImGui::EndChild();
+}
+
+void Editor::DrawOutputPanel(const ImVec2 &size)
+{
+    ImGui::BeginChild(
+        "##output_panel",
+        size,
+        true,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+    ImGui::TextUnformatted(OutputTitle.empty() ? "Output" : OutputTitle.c_str());
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f);
+    if (ImGui::SmallButton("Clear"))
+        OutputText.clear();
+
+    ImGui::Separator();
+
+    ImGui::BeginChild(
+        "##output_text",
+        ImVec2(0, 0),
+        false,
+        ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImGui::PushStyleColor(
+        ImGuiCol_Text,
+        ImVec4(0.85f, 0.85f, 0.85f, 1.0f));
+    ImGui::TextUnformatted(OutputText.c_str());
+    ImGui::PopStyleColor();
+
+    if (OutputScrollToBottom) {
+        ImGui::SetScrollHereY(1.0f);
+        OutputScrollToBottom = false;
+    }
+
+    ImGui::EndChild();
+    ImGui::EndChild();
+}
+
+void Editor::CompileAndRunProject()
+{
+    Error err = Code.Generate(CanvasView, Registry, Language);
+    if (err != Error::Ok) {
+        SetOutput("Code Generation", "Code generation failed: " + std::string(to_string(err)));
+        Notify("Code generation failed: " + std::string(to_string(err)), true);
+        return;
+    }
+
+    ShowCodeView = true;
+
+    const std::string projectName = ProjectName.empty() ? "program" : ProjectName;
+    BuildResult result = ProjectRunner::CompileAndRunInTerminal(Code.GetCode(), Language, projectName);
+    ShowBuildResult("Run", result);
 }
 
 void Editor::Notify(const std::string &text, bool error)
