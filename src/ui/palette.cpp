@@ -18,6 +18,18 @@ static const char *CategoryDisplayName(BlockCategory category)
     return "Other";
 }
 
+static bool FindVariableNameForOpCode(const BlockRegistry &registry, const std::string &opcode, std::string &outName)
+{
+    for (const VariableInfo &v : registry.Variables) {
+        if (opcode == VarGetOpCode(v.Name) || opcode == VarSetOpCode(v.Name)) {
+            outName = v.Name;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool BlockPalette::Matches(const BlockDefinition &def) const
 {
     if (Search[0] == '\0')
@@ -30,7 +42,9 @@ bool BlockPalette::Matches(const BlockDefinition &def) const
 
 void BlockPalette::DrawBlockPreview(
     Canvas &canvas,
-    const BlockDefinition &def)
+    const BlockDefinition &def,
+    const char *deleteLabel,
+    std::function<void()> onDelete)
 {
     ImGui::PushID(&def);
 
@@ -65,6 +79,12 @@ void BlockPalette::DrawBlockPreview(
 
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         canvas.EditorRef->BeginPaletteDrag(def);
+    }
+
+    if (deleteLabel && ImGui::BeginPopupContextItem("##block_ctx_menu")) {
+        if (ImGui::MenuItem(deleteLabel) && onDelete)
+            onDelete();
+        ImGui::EndPopup();
     }
 
     if (ImGui::IsItemHovered() && !def.Description.empty()) {
@@ -126,10 +146,17 @@ void BlockPalette::DrawVariableSection(Canvas &canvas, BlockRegistry &registry)
     for (auto &def : registry.Definitions) {
         if (def.Category != BlockCategory::Variable)
             continue;
+
+        std::string varName;
+        if (!FindVariableNameForOpCode(registry, def.OpCode, varName))
+            continue;
         if (!Matches(def))
             continue;
 
-        DrawBlockPreview(canvas, def);
+        std::string deleteLabel = "Delete variable '" + varName + "'";
+        DrawBlockPreview(canvas, def, deleteLabel.c_str(), [&canvas, varName]() {
+            canvas.DeleteVariable(varName);
+        });
     }
 }
 
@@ -150,13 +177,20 @@ void BlockPalette::DrawCustomSection(Canvas &canvas, BlockRegistry &registry)
             continue;
         if (!IsCustomCall(def))
             continue;
+
+        std::string blockName = CustomBlockName(def);
+        if (!IsCustomBlockRegistered(registry, blockName))
+            continue;
         if (!Matches(def))
             continue;
 
-        DrawBlockPreview(canvas, def);
+        std::string deleteLabel = "Delete block '" + blockName + "'";
+        DrawBlockPreview(canvas, def, deleteLabel.c_str(), [&canvas, blockName]() {
+            canvas.DeleteCustomBlock(blockName);
+        });
 
         std::vector<const BlockDefinition *> params =
-            CustomBlockParamDefs(registry, CustomBlockName(def));
+            CustomBlockParamDefs(registry, blockName);
 
         if (!params.empty()) {
             ImGui::Indent(10.0f);

@@ -1,5 +1,6 @@
 #include <cmath>
 #include <algorithm>
+#include <functional>
 
 #include "ui/canvas.hpp"
 #include "ui/const.hpp"
@@ -1107,6 +1108,82 @@ void Canvas::DrawComments(ImVec2 origin)
     }
 }
 
+static void CollectBlocksMatching(
+        VisualBlock *block,
+        const std::function<bool(const VisualBlock &)> &pred,
+        std::vector<VisualBlock *> &out)
+{
+    if (!block)
+        return;
+
+    if (pred(*block)) {
+        out.push_back(block);
+        return;
+    }
+
+    for (auto &[key, arg] : block->Args) {
+        if (auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&arg))
+            CollectBlocksMatching(held->get(), pred, out);
+    }
+}
+
+static void ClearVariableRefs(VisualBlock *block, const std::string &name)
+{
+    if (!block)
+        return;
+
+    for (auto &[key, arg] : block->Args) {
+        if (auto *ref = std::get_if<VariableRef>(&arg)) {
+            if (ref->Name != name)
+                continue;
+
+            const BlockSchemaItem *item = nullptr;
+            if (block->Def) {
+                for (const BlockSchemaItem &schemaItem : block->Def->Schema) {
+                    if (schemaItem.Name == key) {
+                        item = &schemaItem;
+                        break;
+                    }
+                }
+            }
+
+            arg = (item && block->Def)
+                ? MakeDefaultArg(*block->Def, *item)
+                : VisualArg{ LiteralValue{ std::in_place_type<int>, 0 } };
+
+            continue;
+        }
+
+        if (auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&arg))
+            ClearVariableRefs(held->get(), name);
+    }
+}
+
+void Canvas::DeleteVariable(const std::string &name)
+{
+    if (!Registry || !Registry->HasVariable(name))
+        return;
+
+    const std::string getOp = VarGetOpCode(name);
+    const std::string setOp = VarSetOpCode(name);
+
+    auto isVariableBlock = [&](const VisualBlock &b) {
+        return b.Def && (b.Def->OpCode == getOp || b.Def->OpCode == setOp);
+    };
+
+    std::vector<VisualBlock *> toDelete;
+    for (auto &blockPtr : Manager.Blocks)
+        CollectBlocksMatching(blockPtr.get(), isVariableBlock, toDelete);
+
+    for (auto &blockPtr : Manager.Blocks)
+        ClearVariableRefs(blockPtr.get(), name);
+
+    for (VisualBlock *block : toDelete)
+        Manager.DeleteBlock(block);
+
+    DISCARD(Registry->RemoveVariable(name));
+}
+
 void Canvas::RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType)
 {
     VarCreateRequest.Requested = true;
@@ -1217,6 +1294,44 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
     }
 
     ImGui::EndPopup();
+}
+
+void Canvas::DeleteCustomBlock(const std::string &name)
+{
+    if (!Registry || !IsCustomBlockRegistered(*Registry, name))
+        return;
+
+    const std::string callOp = CustomCallOpCode(name);
+    const std::string hatOp  = CustomHatOpCode(name);
+
+    std::vector<std::string> paramOps;
+    for (const BlockDefinition *paramDef : CustomBlockParamDefs(*Registry, name))
+        paramOps.push_back(paramDef->OpCode);
+
+    std::vector<VisualBlock *> hatRoots;
+    for (VisualBlock *root : Manager.Roots)
+        if (root->Def && root->Def->OpCode == hatOp)
+            hatRoots.push_back(root);
+
+    for (VisualBlock *hatRoot : hatRoots)
+        Manager.DeleteBelow(hatRoot);
+
+    auto isCallOrParamBlock = [&](const VisualBlock &b) {
+        if (!b.Def)
+            return false;
+        if (b.Def->OpCode == callOp)
+            return true;
+        return std::find(paramOps.begin(), paramOps.end(), b.Def->OpCode) != paramOps.end();
+    };
+
+    std::vector<VisualBlock *> toDelete;
+    for (auto &blockPtr : Manager.Blocks)
+        CollectBlocksMatching(blockPtr.get(), isCallOrParamBlock, toDelete);
+
+    for (VisualBlock *block : toDelete)
+        Manager.DeleteBlock(block);
+
+    DISCARD(UnregisterCustomBlock(*Registry, name));
 }
 
 void Canvas::RequestCustomBlockCreation()

@@ -1,5 +1,7 @@
 #include "block/registry.hpp"
 
+#include <algorithm>
+
 std::string VarGetOpCode(const std::string &name) { return "var_get_" + name; }
 std::string VarSetOpCode(const std::string &name) { return "var_set_" + name; }
 
@@ -123,6 +125,27 @@ Error BlockRegistry::AddVariable(const std::string &name, Value type)
     }
 
     Variables.push_back({ name, type });
+
+    return Error::Ok;
+}
+
+Error BlockRegistry::RemoveVariable(const std::string &name)
+{
+    auto it = std::find_if(
+            Variables.begin(),
+            Variables.end(),
+            [&](const VariableInfo &v) { return v.Name == name; });
+
+    FAIL_COND_V_MSG(
+            it == Variables.end(),
+            Error::Failed,
+            "Tried to remove variable '{}', which doesn't exist",
+            name);
+
+    Converter.ExprBuilders.erase(VarGetOpCode(name));
+    Converter.StmtBuilders.erase(VarSetOpCode(name));
+
+    Variables.erase(it);
 
     return Error::Ok;
 }

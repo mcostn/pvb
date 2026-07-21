@@ -20,10 +20,12 @@ class BlockRegistry
         Error RegisterBlock(BlockDefinition def);
 
         Error AddVariable(const std::string &name, Value type);
+        Error RemoveVariable(const std::string &name);
         bool HasVariable(const std::string &name) const;
 
         std::deque<BlockDefinition> Definitions;
         std::vector<VariableInfo> Variables;
+        std::vector<std::string> CustomBlocks;
         BlockConverter Converter;
 };
 

@@ -1,5 +1,6 @@
 #include "ui/custom_block.hpp"
 
+#include <algorithm>
 #include <cstring>
 
 #include "block/converter.hpp"
@@ -154,6 +155,31 @@ Error RegisterCustomBlock(BlockRegistry &registry, const CustomBlockSpec &spec)
 
         registry.Definitions.push_back(std::move(param));
     }
+
+    registry.CustomBlocks.push_back(spec.Name);
+
+    return Error::Ok;
+}
+
+bool IsCustomBlockRegistered(const BlockRegistry &registry, const std::string &name)
+{
+    return std::find(registry.CustomBlocks.begin(), registry.CustomBlocks.end(), name)
+        != registry.CustomBlocks.end();
+}
+
+Error UnregisterCustomBlock(BlockRegistry &registry, const std::string &name)
+{
+    auto it = std::find(registry.CustomBlocks.begin(), registry.CustomBlocks.end(), name);
+
+    if (it == registry.CustomBlocks.end())
+        return Error::Failed;
+
+    registry.Converter.StmtBuilders.erase(CustomCallOpCode(name));
+
+    for (const BlockDefinition *paramDef : CustomBlockParamDefs(registry, name))
+        registry.Converter.ExprBuilders.erase(paramDef->OpCode);
+
+    registry.CustomBlocks.erase(it);
 
     return Error::Ok;
 }

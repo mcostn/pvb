@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 #include "ui/canvas.hpp"
 #include "block/registry.hpp"
@@ -19,7 +20,11 @@ public:
 
     bool Matches(const BlockDefinition &def) const;
 
-    void DrawBlockPreview(Canvas &canvas, const BlockDefinition &def);
+    void DrawBlockPreview(
+            Canvas &canvas,
+            const BlockDefinition &def,
+            const char *deleteLabel = nullptr,
+            std::function<void()> onDelete = {});
     void DrawCategorySection(Canvas &canvas, BlockRegistry &registry, BlockCategory category);
     void DrawVariableSection(Canvas &canvas, BlockRegistry &registry);
     void DrawCustomSection(Canvas &canvas, BlockRegistry &registry);

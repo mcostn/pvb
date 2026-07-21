@@ -103,6 +103,7 @@ public:
 
     void RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType);
     void DrawCreateVariablePopup(BlockRegistry &registry);
+    void DeleteVariable(const std::string &name);
 
     struct CustomParamEdit
     {
@@ -118,6 +119,7 @@ public:
 
     void RequestCustomBlockCreation();
     void DrawCreateCustomBlockPopup(BlockRegistry &registry);
+    void DeleteCustomBlock(const std::string &name);
 };
 
 BlockOutline BuildOutline(const VisualBlock &block, ImVec2 topLeft, float zoom);
