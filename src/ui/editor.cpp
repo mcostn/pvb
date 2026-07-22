@@ -33,7 +33,9 @@ void Editor::Draw()
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoScrollWithMouse);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
 
