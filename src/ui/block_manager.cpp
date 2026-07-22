@@ -90,17 +90,26 @@ VisualArg BlockManager::CloneArg(const VisualArg &arg)
     }, arg);
 }
 
-VisualBlock *BlockManager::CloneNode(const VisualBlock &src)
+VisualBlock *BlockManager::CloneNode(const VisualBlock &src, bool includeArgs, bool includeBodies)
 {
     auto clone = std::make_unique<VisualBlock>();
     clone->Id = NextId++;
     clone->Def = src.Def;
     clone->Pos = src.Pos;
 
-    for (const auto &[key, arg] : src.Args)
-        clone->Args.emplace(key, CloneArg(arg));
+    for (const auto &[key, arg] : src.Args) {
+        if (includeArgs) {
+            clone->Args.emplace(key, CloneArg(arg));
+        } else {
+            const BlockSchemaItem *item = FindSchemaItem(src.Def, key);
+            clone->Args.emplace(key, (item && src.Def)
+                ? MakeDefaultArg(*src.Def, *item)
+                : VisualArg{LiteralValue{std::in_place_type<int>, 0}});
+        }
+    }
+
     for (const auto &[slot, bodyHead] : src.BodyRoots) {
-        VisualBlock *clonedHead = bodyHead ? CloneChain(bodyHead) : nullptr;
+        VisualBlock *clonedHead = (includeBodies && bodyHead) ? CloneChain(bodyHead) : nullptr;
         clone->BodyRoots[slot] = clonedHead;
         AdoptBodyHead(clone.get(), slot, clonedHead);
     }
@@ -115,12 +124,12 @@ VisualBlock *BlockManager::CloneNode(const VisualBlock &src)
     return result;
 }
 
-VisualBlock *BlockManager::CloneChain(VisualBlock *head)
+VisualBlock *BlockManager::CloneRange(VisualBlock *first, VisualBlock *last)
 {
     VisualBlock *prevClone = nullptr;
     VisualBlock *headClone = nullptr;
 
-    for (VisualBlock *cur = head; cur; cur = cur->Next) {
+    for (VisualBlock *cur = first; cur; cur = cur->Next) {
         VisualBlock *result = CloneNode(*cur);
 
         if (!headClone)
@@ -130,9 +139,17 @@ VisualBlock *BlockManager::CloneChain(VisualBlock *head)
             result->Prev = prevClone;
         }
         prevClone = result;
+
+        if (cur == last)
+            break;
     }
 
     return headClone;
+}
+
+VisualBlock *BlockManager::CloneChain(VisualBlock *head)
+{
+    return CloneRange(head, nullptr);
 }
 
 VisualBlock *BlockManager::DuplicateBlock(VisualBlock *block)
@@ -142,6 +159,56 @@ VisualBlock *BlockManager::DuplicateBlock(VisualBlock *block)
 
     Roots.push_back(copy);
     return copy;
+}
+
+VisualBlock *BlockManager::DuplicateBlockWithoutArgs(VisualBlock *block)
+{
+    if (!block)
+        return nullptr;
+
+    VisualBlock *copy = CloneNode(*block, /*includeArgs=*/false, /*includeBodies=*/true);
+    copy->Pos = block->Pos + ImVec2(kDuplicateOffset, kDuplicateOffset);
+
+    Roots.push_back(copy);
+    return copy;
+}
+
+VisualBlock *BlockManager::DuplicateBlockWithoutBodies(VisualBlock *block)
+{
+    if (!block)
+        return nullptr;
+
+    VisualBlock *copy = CloneNode(*block, /*includeArgs=*/true, /*includeBodies=*/false);
+    copy->Pos = block->Pos + ImVec2(kDuplicateOffset, kDuplicateOffset);
+
+    Roots.push_back(copy);
+    return copy;
+}
+
+// Clones `block` through its tail (inclusive), matching DeleteBelow's range.
+VisualBlock *BlockManager::DuplicateBelow(VisualBlock *block)
+{
+    if (!block)
+        return nullptr;
+
+    VisualBlock *copyHead = CloneChain(block);
+    copyHead->Pos = block->Pos + ImVec2(kDuplicateOffset, kDuplicateOffset);
+
+    Roots.push_back(copyHead);
+    return copyHead;
+}
+
+VisualBlock *BlockManager::DuplicateAbove(VisualBlock *block)
+{
+    if (!block)
+        return nullptr;
+
+    VisualBlock *root = FindRoot(block);
+    VisualBlock *copyHead = CloneRange(root, block);
+    copyHead->Pos = root->Pos + ImVec2(kDuplicateOffset, kDuplicateOffset);
+
+    Roots.push_back(copyHead);
+    return copyHead;
 }
 
 void BlockManager::DestroyBlock(VisualBlock *block)
@@ -229,6 +296,132 @@ void BlockManager::DeleteRange(VisualBlock *first, VisualBlock *last)
         DestroyBlock(block);
         block = next;
     }
+}
+
+bool BlockManager::HasPluggedArgs(const VisualBlock *block) const
+{
+    if (!block)
+        return false;
+
+    for (const auto &[key, arg] : block->Args) {
+        auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&arg);
+        if (held && held->get())
+            return true;
+    }
+
+    return false;
+}
+
+void BlockManager::DeleteArgs(VisualBlock *block)
+{
+    if (!block)
+        return;
+
+    for (auto &[key, arg] : block->Args) {
+        if (!std::get_if<std::unique_ptr<VisualBlock>>(&arg))
+            continue;
+
+        const BlockSchemaItem *item = FindSchemaItem(block->Def, key);
+        arg = (item && block->Def)
+            ? MakeDefaultArg(*block->Def, *item)
+            : VisualArg{LiteralValue{std::in_place_type<int>, 0}};
+    }
+}
+
+void BlockManager::DetachArgs(VisualBlock *block)
+{
+    if (!block)
+        return;
+
+    float stackOffset = 0.0f;
+
+    for (auto &[key, arg] : block->Args) {
+        auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&arg);
+        if (!held || !held->get())
+            continue;
+
+        VisualBlock *child = held->get();
+        child->ArgOwner = nullptr;
+        child->ArgSlot.clear();
+        child->Pos = block->Pos + ImVec2(block->Size.x + kDuplicateOffset, stackOffset);
+        stackOffset += child->Size.y + kDuplicateOffset;
+
+        Blocks.push_back(std::move(*held));
+        Roots.push_back(child);
+
+        const BlockSchemaItem *item = FindSchemaItem(block->Def, key);
+        arg = (item && block->Def)
+            ? MakeDefaultArg(*block->Def, *item)
+            : VisualArg{LiteralValue{std::in_place_type<int>, 0}};
+    }
+}
+
+void BlockManager::DeleteWithoutArgs(VisualBlock *block)
+{
+    if (!block)
+        return;
+
+    DetachArgs(block);
+    DeleteBlock(block);
+}
+
+bool BlockManager::HasBodies(const VisualBlock *block) const
+{
+    if (!block)
+        return false;
+
+    for (const auto &[slot, head] : block->BodyRoots)
+        if (head)
+            return true;
+
+    return false;
+}
+
+void BlockManager::DeleteBodies(VisualBlock *block)
+{
+    if (!block)
+        return;
+
+    for (auto &[slot, head] : block->BodyRoots) {
+        VisualBlock *child = head;
+        while (child) {
+            VisualBlock *next = child->Next;
+            DestroyBlock(child);
+            child = next;
+        }
+        head = nullptr;
+    }
+}
+
+void BlockManager::DetachBodies(VisualBlock *block)
+{
+    if (!block)
+        return;
+
+    float stackOffset = 0.0f;
+
+    for (auto &[slot, head] : block->BodyRoots) {
+        if (!head)
+            continue;
+
+        VisualBlock *chainHead = head;
+        chainHead->BodyOwner = nullptr;
+        chainHead->BodySlot.clear();
+        chainHead->Pos = block->Pos + ImVec2(block->Size.x + kDuplicateOffset, stackOffset);
+        stackOffset += chainHead->Size.y + kDuplicateOffset;
+
+        Roots.push_back(chainHead);
+        head = nullptr;
+    }
+}
+
+void BlockManager::DeleteWithoutBodies(VisualBlock *block)
+{
+    if (!block)
+        return;
+
+    DetachBodies(block);
+    DeleteBlock(block);
 }
 
 void BlockManager::DeleteAll()

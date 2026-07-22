@@ -386,7 +386,9 @@ VisualBlock *Canvas::AddBlock(const BlockDefinition &def, ImVec2 worldPos)
 
 void Canvas::DeleteBlock(VisualBlock *block, DeleteType type)
 {
-    if (block->Id == SelectedId) SelectedId = 0;
+    if (type != DeleteType::Args && type != DeleteType::Bodies && block->Id == SelectedId)
+        SelectedId = 0;
+
     switch (type) {
         case DeleteType::Normal:
             Manager.DeleteBlock(block);
@@ -397,12 +399,46 @@ void Canvas::DeleteBlock(VisualBlock *block, DeleteType type)
         case DeleteType::Above:
             Manager.DeleteAbove(block);
             break;
+        case DeleteType::Args:
+            Manager.DeleteArgs(block);
+            break;
+        case DeleteType::WithoutArgs:
+            Manager.DeleteWithoutArgs(block);
+            break;
+        case DeleteType::Bodies:
+            Manager.DeleteBodies(block);
+            break;
+        case DeleteType::WithoutBodies:
+            Manager.DeleteWithoutBodies(block);
+            break;
     }
 }
 
-void Canvas::DuplicateBlock(VisualBlock *block)
+void Canvas::DuplicateBlock(VisualBlock *block, DuplicateType type)
 {
-    VisualBlock *result = Manager.DuplicateBlock(block);
+    if (!block)
+        return;
+
+    VisualBlock *result = nullptr;
+
+    switch (type) {
+        case DuplicateType::Normal:
+            result = Manager.DuplicateBlock(block);
+            break;
+        case DuplicateType::Below:
+            result = Manager.DuplicateBelow(block);
+            break;
+        case DuplicateType::Above:
+            result = Manager.DuplicateAbove(block);
+            break;
+        case DuplicateType::WithoutArgs:
+            result = Manager.DuplicateBlockWithoutArgs(block);
+            break;
+        case DuplicateType::WithoutBodies:
+            result = Manager.DuplicateBlockWithoutBodies(block);
+            break;
+    }
+
     if (result) SelectedId = result->Id;
 }
 
@@ -634,6 +670,7 @@ void Canvas::HandleContextMenu(ImVec2 origin, bool hovered)
             SelectedId = hit->Id;
         }
 
+        ImGui::SetNextWindowPos(ImGui::GetIO().MousePos);
         ImGui::OpenPopup("##canvas_context_menu");
     }
 
@@ -642,17 +679,53 @@ void Canvas::HandleContextMenu(ImVec2 origin, bool hovered)
             auto block = Manager.FindBlock(ContextMenuBlockId);
 
             if (block) {
-                if (ImGui::MenuItem("Duplicate"))
-                    DuplicateBlock(block);
+                bool hasArgs = Manager.HasPluggedArgs(block);
+                bool hasBodies = Manager.HasBodies(block);
 
-                if (ImGui::MenuItem("Delete"))
-                    DeleteBlock(block, DeleteType::Normal);
+                if (ImGui::BeginMenu("Duplicate")) {
+                    if (ImGui::MenuItem("Duplicate just Block"))
+                        DuplicateBlock(block, DuplicateType::Normal);
 
-                if (block->Next && ImGui::MenuItem("Delete Below"))
-                    DeleteBlock(block, DeleteType::Below);
+                    if (block->Next && ImGui::MenuItem("Duplicate Below"))
+                        DuplicateBlock(block, DuplicateType::Below);
 
-                if (block->Prev && ImGui::MenuItem("Delete Above"))
-                    DeleteBlock(block, DeleteType::Above);
+                    if (block->Prev && ImGui::MenuItem("Duplicate Above"))
+                        DuplicateBlock(block, DuplicateType::Above);
+
+                    if (hasArgs && ImGui::MenuItem("Duplicate Without Args"))
+                        DuplicateBlock(block, DuplicateType::WithoutArgs);
+
+                    if (hasBodies && ImGui::MenuItem("Duplicate Without Bodies"))
+                        DuplicateBlock(block, DuplicateType::WithoutBodies);
+
+                    ImGui::EndMenu();
+                }
+
+                if (ImGui::BeginMenu("Delete")) {
+                    if (ImGui::MenuItem("Delete just Block"))
+                        DeleteBlock(block, DeleteType::Normal);
+
+                    if (block->Next && ImGui::MenuItem("Delete Below"))
+                        DeleteBlock(block, DeleteType::Below);
+
+                    if (block->Prev && ImGui::MenuItem("Delete Above"))
+                        DeleteBlock(block, DeleteType::Above);
+
+                    if (hasArgs && ImGui::MenuItem("Delete Args"))
+                        DeleteBlock(block, DeleteType::Args);
+
+                    if (hasArgs && ImGui::MenuItem("Delete Without Args"))
+                        DeleteBlock(block, DeleteType::WithoutArgs);
+
+                    if (hasBodies && ImGui::MenuItem("Delete Bodies"))
+                        DeleteBlock(block, DeleteType::Bodies);
+
+                    if (hasBodies && ImGui::MenuItem("Delete Without Bodies"))
+                        DeleteBlock(block, DeleteType::WithoutBodies);
+
+                    ImGui::EndMenu();
+                }
+
             }
         } else {
             if (ImGui::MenuItem("Add Comment")) {

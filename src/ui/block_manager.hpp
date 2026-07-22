@@ -26,6 +26,10 @@ class BlockManager
 public:
     VisualBlock *AddBlock(const BlockDefinition& def, ImVec2 worldPos);
     VisualBlock *DuplicateBlock(VisualBlock *block);
+    VisualBlock *DuplicateBlockWithoutArgs(VisualBlock *block);
+    VisualBlock *DuplicateBlockWithoutBodies(VisualBlock *block);
+    VisualBlock *DuplicateBelow(VisualBlock *block);
+    VisualBlock *DuplicateAbove(VisualBlock *block);
 
     void DestroyBlock(VisualBlock *block);
     void DeleteRange(VisualBlock *first, VisualBlock *last);
@@ -33,6 +37,18 @@ public:
     void DeleteBelow(VisualBlock *block) { DeleteRange(block, FindTail(block)); }
     void DeleteAbove(VisualBlock *block) { DeleteRange(FindRoot(block), block); }
     void DeleteAll();
+
+    void DeleteArgs(VisualBlock *block);
+    void DetachArgs(VisualBlock *block);
+    void DeleteWithoutArgs(VisualBlock *block);
+
+    bool HasPluggedArgs(const VisualBlock *block) const;
+
+    void DeleteBodies(VisualBlock *block);
+    void DetachBodies(VisualBlock *block);
+    void DeleteWithoutBodies(VisualBlock *block);
+
+    bool HasBodies(const VisualBlock *block) const;
 
     VisualBlock *FindBlock(u32 id);
 
@@ -51,8 +67,9 @@ public:
     std::vector<std::unique_ptr<VisualBlock>> Blocks;
     std::vector<VisualBlock*> Roots;
 
-    VisualBlock *CloneNode(const VisualBlock &src);
+    VisualBlock *CloneNode(const VisualBlock &src, bool includeArgs = true, bool includeBodies = true);
     VisualBlock *CloneChain(VisualBlock *head);
+    VisualBlock *CloneRange(VisualBlock *first, VisualBlock *last);
     VisualArg CloneArg(const VisualArg &arg);
 
     u32 NextId = 1;

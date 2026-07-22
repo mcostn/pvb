@@ -13,6 +13,19 @@ enum class DeleteType
     Normal,
     Below,
     Above,
+    Args,
+    WithoutArgs,
+    Bodies,
+    WithoutBodies,
+};
+
+enum class DuplicateType
+{
+    Normal,
+    Below,
+    Above,
+    WithoutArgs,
+    WithoutBodies,
 };
 
 class Editor;
@@ -54,7 +67,7 @@ public:
 
     BlockManager Manager;
     VisualBlock *AddBlock(const BlockDefinition &def, ImVec2 worldPos);
-    void DuplicateBlock(VisualBlock *block);
+    void DuplicateBlock(VisualBlock *block, DuplicateType type = DuplicateType::Normal);
     void DeleteBlock(VisualBlock *block, DeleteType type);
 
     ImVec2 WorldToScreen(ImVec2 world, ImVec2 origin) const;
