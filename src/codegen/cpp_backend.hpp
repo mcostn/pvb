@@ -10,6 +10,7 @@ struct CppContext
     std::unordered_set<std::string> Includes {};
     std::unordered_set<std::string> Namespaces {};
     std::vector<std::string> FunctionDeclarations;
+    bool SeedRandom = false;
 };
 
 class CppEmitter : public Emitter

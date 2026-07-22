@@ -368,6 +368,14 @@ CODEGEN_TEST(
 )")
 
 CODEGEN_TEST(
+    PickRandom,
+    AST_PickRandom,
+    R"(import random
+
+print(random.randint(1, 10))
+)")
+
+CODEGEN_TEST(
     EmptyFunction,
     AST_EmptyFunction,
     R"(def foo():

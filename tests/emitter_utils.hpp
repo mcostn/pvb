@@ -484,6 +484,11 @@ std::string Generate(const Program &program)
         Print(Call(Builtin::Contains, String("hello world"), String("world"))) \
     )
 
+#define AST_PickRandom \
+    MakeProgram( \
+        Print(Call(Builtin::RandomRange, Int(1), Int(10))) \
+    )
+
 #define AST_EmptyFunction \
     MakeProgram( \
         Function( \

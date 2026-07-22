@@ -136,6 +136,8 @@ enum class Builtin
     Floor,
     Ceil,
 
+    RandomRange,
+
     Length,
     CharAt,
     Join,

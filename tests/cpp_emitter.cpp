@@ -856,6 +856,22 @@ int main()
 )")
 
 CODEGEN_TEST(
+    PickRandom,
+    AST_PickRandom,
+    R"(#include <cstdlib>
+#include <ctime>
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    srand(time(nullptr));
+
+    cout << (1 + rand() % ((10) - (1) + 1)) << endl;
+}
+)")
+
+CODEGEN_TEST(
     EmptyFunction,
     AST_EmptyFunction,
     R"(void foo();

@@ -90,6 +90,13 @@ void CppEmitter::EmitBuiltinRequirements(Builtin b)
             Context.Namespaces.insert("std");
             return;
 
+        case Builtin::RandomRange:
+            Context.Includes.insert("<cstdlib>");
+            Context.Includes.insert("<ctime>");
+            Context.Namespaces.insert("std");
+            Context.SeedRandom = true;
+            return;
+
         case Builtin::Length:
         case Builtin::CharAt:
         case Builtin::Join:
@@ -106,9 +113,8 @@ void CppEmitter::EmitBuiltinRequirements(Builtin b)
 Error CppEmitter::Visit(const Program &program)
 {
     PushOut(&Main);
-    Out() << "int main()\n"
-        << "{\n";
     IndentLevel++;
+
     for (const auto &stmt : program.Statements) {
         if (stmt->Kind == AstNodeKind::FunctionStmt) {
             TRY(Emit(*stmt));
@@ -128,7 +134,6 @@ Error CppEmitter::Visit(const Program &program)
         Out() << "\n";
     }
     IndentLevel--;
-    Out() << "}";
     PopOut();
 
     std::vector<std::string> sortedIncludes(
@@ -154,7 +159,17 @@ Error CppEmitter::Visit(const Program &program)
     if (!Context.FunctionDeclarations.empty())
         Out() << "\n";
 
-    Out() << Main.str() << "\n";
+    Out() << "int main()\n"
+        << "{\n";
+    if (Context.SeedRandom) {
+        IndentLevel++;
+        Indent();
+        Out() << "srand(time(nullptr));\n\n";
+        IndentLevel--;
+    }
+    Out() << Main.str();
+    Out() << "}\n";
+
     std::string funcImpl = Functions.str();
     if (!funcImpl.empty())
         Out() << "\n" << funcImpl;
@@ -419,6 +434,16 @@ Error CppEmitter::Visit(const CallExpr &expr)
                 Out() << ").find(";
                 TRY(Emit(*expr.Args[1]));
                 Out() << ") != string::npos)";
+                return Error::Ok;
+
+            case Builtin::RandomRange:
+                Out() << "(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << " + rand() % ((";
+                TRY(Emit(*expr.Args[1]));
+                Out() << ") - (";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ") + 1))";
                 return Error::Ok;
 
             default:

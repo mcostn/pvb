@@ -53,6 +53,8 @@ std::string_view PythonEmitter::BuiltinName(Builtin b)
         case Builtin::Floor: return "math.floor";
         case Builtin::Ceil:  return "math.ceil";
 
+        case Builtin::RandomRange: return "random.randint";
+
         default:
             return {};
     }
@@ -70,6 +72,10 @@ void PythonEmitter::EmitBuiltinRequirements(Builtin b)
         case Builtin::Floor:
         case Builtin::Ceil:
             Context.Imports.insert("math");
+            return;
+
+        case Builtin::RandomRange:
+            Context.Imports.insert("random");
             return;
 
         default:

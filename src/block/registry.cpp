@@ -488,13 +488,27 @@ BlockRegistry GetBlockRegistry()
 
     DISCARD(out.RegisterBlock({
         .Fmt = "Ceil {number:value=1}",
-        .Description = "Floor of a number",
+        .Description = "Ceil of a number",
         .OpCode = "ceil",
         .Category = BlockCategory::Math,
         .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
             return Call(
                 Builtin::Ceil,
                 c.ResolveArg(b.Args.at("value"), VAL_NUMBER)
+            );
+        }
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Pick random {number:min=1} to {number:max=10}",
+        .Description = "Picks a random whole number between min and max (inclusive)",
+        .OpCode = "pick_random",
+        .Category = BlockCategory::Math,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::RandomRange,
+                c.ResolveArg(b.Args.at("min"), VAL_INT),
+                c.ResolveArg(b.Args.at("max"), VAL_INT)
             );
         }
     }));
