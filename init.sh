@@ -5,9 +5,15 @@ BUILD_DIR="build"
 BUILD_TYPE="Debug"
 RECONFIGURE=0
 CLEAN=0
+CMAKE_ARGS=""
 
 for arg in "$@"; do
     case "$arg" in
+        --)
+            shift
+            CMAKE_ARGS="$@"
+            break
+            ;;
         --reconfigure)
             RECONFIGURE=1
             ;;
@@ -25,6 +31,7 @@ for arg in "$@"; do
             exit 1
             ;;
     esac
+    shift
 done
 
 if [ "$CLEAN" -eq 1 ]; then
@@ -39,8 +46,10 @@ fi
 
 if [ ! -d "$BUILD_DIR" ] || [ ! -f "$BUILD_DIR/CMakeCache.txt" ] || [ "$RECONFIGURE" -eq 1 ]; then
     echo "Initializing CMake build directory ($BUILD_TYPE)..."
-    cmake -S . -B "$BUILD_DIR" $GENERATOR_ARGS \
-        -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+    cmake -S . -B "$BUILD_DIR" \
+        $GENERATOR_ARGS \
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+        $CMAKE_ARGS
 else
     echo "Build directory already initialized."
     echo "Run with --reconfigure to change the build type."
