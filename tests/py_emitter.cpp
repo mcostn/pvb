@@ -344,6 +344,30 @@ bar()
 )")
 
 CODEGEN_TEST(
+    StrLength,
+    AST_StrLength,
+    R"(print(len("hello"))
+)")
+
+CODEGEN_TEST(
+    StrCharAt,
+    AST_StrCharAt,
+    R"(print("hello"[1])
+)")
+
+CODEGEN_TEST(
+    StrJoin,
+    AST_StrJoin,
+    R"(print(("hello " + "world"))
+)")
+
+CODEGEN_TEST(
+    StrContains,
+    AST_StrContains,
+    R"(print(("world" in "hello world"))
+)")
+
+CODEGEN_TEST(
     EmptyFunction,
     AST_EmptyFunction,
     R"(def foo():

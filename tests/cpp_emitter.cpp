@@ -804,6 +804,58 @@ void bar()
 )")
 
 CODEGEN_TEST(
+    StrLength,
+    AST_StrLength,
+    R"(#include <iostream>
+#include <string>
+using namespace std;
+
+int main()
+{
+    cout << string("hello").length() << endl;
+}
+)")
+
+CODEGEN_TEST(
+    StrCharAt,
+    AST_StrCharAt,
+    R"(#include <iostream>
+#include <string>
+using namespace std;
+
+int main()
+{
+    cout << string("hello")[1] << endl;
+}
+)")
+
+CODEGEN_TEST(
+    StrJoin,
+    AST_StrJoin,
+    R"(#include <iostream>
+#include <string>
+using namespace std;
+
+int main()
+{
+    cout << (string("hello ") + "world") << endl;
+}
+)")
+
+CODEGEN_TEST(
+    StrContains,
+    AST_StrContains,
+    R"(#include <iostream>
+#include <string>
+using namespace std;
+
+int main()
+{
+    cout << (string("hello world").find("world") != string::npos) << endl;
+}
+)")
+
+CODEGEN_TEST(
     EmptyFunction,
     AST_EmptyFunction,
     R"(void foo();

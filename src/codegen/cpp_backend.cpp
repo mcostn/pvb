@@ -90,6 +90,14 @@ void CppEmitter::EmitBuiltinRequirements(Builtin b)
             Context.Namespaces.insert("std");
             return;
 
+        case Builtin::Length:
+        case Builtin::CharAt:
+        case Builtin::Join:
+        case Builtin::Contains:
+            Context.Includes.insert("<string>");
+            Context.Namespaces.insert("std");
+            return;
+
         default:
             return;
     }
@@ -380,6 +388,43 @@ Error CppEmitter::Visit(const CallExpr &expr)
 {
     if (expr.BuiltinKind != Builtin::None) {
         EmitBuiltinRequirements(expr.BuiltinKind);
+
+        // Special cases
+        switch (expr.BuiltinKind) {
+            case Builtin::Length:
+                Out() << "string(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ").length()";
+                return Error::Ok;
+
+            case Builtin::CharAt:
+                Out() << "string(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ")[";
+                TRY(Emit(*expr.Args[1]));
+                Out() << "]";
+                return Error::Ok;
+
+            case Builtin::Join:
+                Out() << "(string(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ") + ";
+                TRY(Emit(*expr.Args[1]));
+                Out() << ")";
+                return Error::Ok;
+
+            case Builtin::Contains:
+                Out() << "(string(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ").find(";
+                TRY(Emit(*expr.Args[1]));
+                Out() << ") != string::npos)";
+                return Error::Ok;
+
+            default:
+                break;
+        }
+
         Out() << BuiltinName(expr.BuiltinKind);
     } else {
         Out() << expr.Function;

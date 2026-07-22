@@ -464,6 +464,26 @@ std::string Generate(const Program &program)
         ExprStatement(Call("bar")) \
     )
 
+#define AST_StrLength \
+    MakeProgram( \
+        Print(Call(Builtin::Length, String("hello"))) \
+    )
+
+#define AST_StrCharAt \
+    MakeProgram( \
+        Print(Call(Builtin::CharAt, String("hello"), Int(1))) \
+    )
+
+#define AST_StrJoin \
+    MakeProgram( \
+        Print(Call(Builtin::Join, String("hello "), String("world"))) \
+    )
+
+#define AST_StrContains \
+    MakeProgram( \
+        Print(Call(Builtin::Contains, String("hello world"), String("world"))) \
+    )
+
 #define AST_EmptyFunction \
     MakeProgram( \
         Function( \

@@ -361,6 +361,40 @@ Error PythonEmitter::Visit(const BinaryExpr &expr)
 Error PythonEmitter::Visit(const CallExpr &expr)
 {
     if (expr.BuiltinKind != Builtin::None) {
+        switch (expr.BuiltinKind) {
+            case Builtin::Length:
+                Out() << "len(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ")";
+                return Error::Ok;
+
+            case Builtin::CharAt:
+                TRY(Emit(*expr.Args[0]));
+                Out() << "[";
+                TRY(Emit(*expr.Args[1]));
+                Out() << "]";
+                return Error::Ok;
+
+            case Builtin::Join:
+                Out() << "(";
+                TRY(Emit(*expr.Args[0]));
+                Out() << " + ";
+                TRY(Emit(*expr.Args[1]));
+                Out() << ")";
+                return Error::Ok;
+
+            case Builtin::Contains:
+                Out() << "(";
+                TRY(Emit(*expr.Args[1]));
+                Out() << " in ";
+                TRY(Emit(*expr.Args[0]));
+                Out() << ")";
+                return Error::Ok;
+
+            default:
+                break;
+        }
+
         EmitBuiltinRequirements(expr.BuiltinKind);
         Out() << BuiltinName(expr.BuiltinKind);
     } else {

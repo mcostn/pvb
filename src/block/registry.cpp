@@ -640,6 +640,66 @@ BlockRegistry GetBlockRegistry()
         .ReturnType = VAL_BOOL,
     }));
 
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Length of {string:value='hello'}",
+        .Description = "Number of characters in a string",
+        .OpCode = "str_length",
+        .Category = BlockCategory::Logic,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Length,
+                c.ResolveArg(b.Args.at("value"), VAL_STRING)
+            );
+        },
+        .ReturnType = VAL_INT,
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Letter {int:index=1} of {string:value='hello'}",
+        .Description = "The letter at the given position of a string (1 is the first letter)",
+        .OpCode = "str_char_at",
+        .Category = BlockCategory::Logic,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::CharAt,
+                c.ResolveArg(b.Args.at("value"), VAL_STRING),
+                Sub(c.ResolveArg(b.Args.at("index"), VAL_INT), Int(1))
+            );
+        },
+        .ReturnType = VAL_STRING,
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "Join {string:lhs='hello '} and {string:rhs='world'}",
+        .Description = "Joins two strings together",
+        .OpCode = "str_join",
+        .Category = BlockCategory::Logic,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Join,
+                c.ResolveArg(b.Args.at("lhs"), VAL_STRING),
+                c.ResolveArg(b.Args.at("rhs"), VAL_STRING)
+            );
+        },
+        .ReturnType = VAL_STRING,
+    }));
+
+    DISCARD(out.RegisterBlock({
+        .Fmt = "{string:value='hello'} contains {string:substr='e'}",
+        .Description = "Checks if a string contains another string",
+        .OpCode = "str_contains",
+        .Category = BlockCategory::Logic,
+        .ExprBuilder = [](BlockConverter &c, const BlockInstance &b) {
+            return Call(
+                Builtin::Contains,
+                c.ResolveArg(b.Args.at("value"), VAL_STRING),
+                c.ResolveArg(b.Args.at("substr"), VAL_STRING)
+            );
+        },
+        .ReturnType = VAL_BOOL,
+    }));
+
+
      DISCARD(out.RegisterBlock({
         .Fmt = "If {bool:cond=true} {body:then}",
         .Description = "Runs the enclosed blocks if the condition is true",

@@ -135,6 +135,11 @@ enum class Builtin
     Abs,
     Floor,
     Ceil,
+
+    Length,
+    CharAt,
+    Join,
+    Contains,
 };
 
 struct CallExpr : Expr
