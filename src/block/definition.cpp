@@ -125,6 +125,8 @@ Error GenerateBlockSchema(BlockDefinition &def)
                 TRY(ParseLiteral(valueType, valStr, value));
                 def.DefaultValues.emplace(nameStr, std::move(value));
             }
+        } else if (*ch == '\n') {
+            schema.emplace_back("", VAL_NONE, BlockSchemaType::LineBreak);
         } else {
             if (schema.empty() || schema.back().Type != BlockSchemaType::Text)
                 schema.emplace_back("", VAL_NONE, BlockSchemaType::Text);

@@ -31,7 +31,6 @@ static bool DrawVarSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
-    size_t slotIndex,
     ImVec2 topLeft,
     ImVec2 size,
     ImFont *font,
@@ -44,7 +43,6 @@ static bool DrawInputSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
-    size_t slotIndex,
     ImVec2 topLeft,
     ImVec2 size,
     float zoom,
@@ -288,8 +286,14 @@ BlockLayout ComputeBlockLayout(
 
         top += row.Height;
 
-        if (row.IsBody && !nextIsSeparator)
-            top += m.BodyBottomBarHeight;
+        if (row.IsBody) {
+            if (!nextIsSeparator)
+                top += m.BodyBottomBarHeight;
+        } else if (!isSeparator) {
+            bool nextIsBody = rowIndex + 1 < rows.size() && rows[rowIndex + 1].IsBody;
+            if (rowIndex + 1 < rows.size() && !nextIsBody)
+                top += m.RowGap;
+        }
 
         layout.Rows.push_back(std::move(row));
     }
@@ -315,16 +319,6 @@ BlockLayout ComputeBlockLayout(
     for (const RowLayout &row : layout.Rows)
         width = std::max(width, row.NaturalWidth);
 
-    // Center header inline rows, separator rows stay left-aligned
-    for (RowLayout &row : layout.Rows) {
-        if (row.IsBody || row.IsSeparator)
-            continue;
-
-        float offset = (width - row.NaturalWidth) * 0.5f;
-        for (SlotLayout &slot : row.Slots)
-            slot.Pos.x += offset;
-    }
-
     layout.Size = ImVec2(width, top);
 
     return layout;
@@ -348,8 +342,7 @@ bool DrawBlockLayout(
             continue;
         }
 
-        for (size_t slotIndex = 0; slotIndex < row.Slots.size(); slotIndex++) {
-            const SlotLayout &slot = row.Slots[slotIndex];
+        for (const SlotLayout &slot : row.Slots) {
             ImVec2 slotTopLeft = topLeft + slot.Pos * zoom;
             ImVec2 slotSize = slot.Size * zoom;
 
@@ -359,7 +352,7 @@ bool DrawBlockLayout(
                     break;
                 case BlockSchemaType::Var:
                     if (!GetPluggedArg(block, slot.Item->Name))
-                        anyActive |= DrawVarSlot(drawList, block, slot, slotIndex, slotTopLeft, slotSize, font, fontSize, textColor, interactive, varContext);
+                        anyActive |= DrawVarSlot(drawList, block, slot, slotTopLeft, slotSize, font, fontSize, textColor, interactive, varContext);
                     break;
                 default:
                     if (!GetPluggedArg(block, slot.Item->Name)) {
@@ -368,7 +361,6 @@ bool DrawBlockLayout(
                                     drawList,
                                     block,
                                     slot,
-                                    slotIndex,
                                     slotTopLeft,
                                     slotSize,
                                     zoom,
@@ -384,7 +376,6 @@ bool DrawBlockLayout(
                                     drawList,
                                     block,
                                     slot,
-                                    slotIndex,
                                     slotTopLeft,
                                     slotSize,
                                     zoom,
@@ -431,6 +422,9 @@ static std::vector<BlockRow> BuildRows(const BlockSchema &schema)
             bodyRow.IsBody = true;
             bodyRow.BodyItem = &item;
             rows.push_back(std::move(bodyRow));
+        } else if (item.Type == BlockSchemaType::LineBreak) {
+            // Doesn't produce a row of its own; just ends the current one.
+            flush();
         } else {
             current.Tokens.push_back(&item);
         }
@@ -556,7 +550,6 @@ static bool DrawVarSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
-    size_t slotIndex,
     ImVec2 topLeft,
     ImVec2 size,
     ImFont *font,
@@ -581,7 +574,7 @@ static bool DrawVarSlot(
 
     ImGui::SetCursorScreenPos(topLeft);
     ImGui::PushID(block.Id);
-    ImGui::PushID((int)slotIndex);
+    ImGui::PushID((const void *)slot.Item);
     ImGui::InvisibleButton("##var_btn", size);
     if (ImGui::IsItemClicked())
         ImGui::OpenPopup("##var_popup");
@@ -629,7 +622,6 @@ static bool DrawInputSlot(
     ImDrawList *drawList,
     VisualBlock &block,
     const SlotLayout &slot,
-    size_t slotIndex,
     ImVec2 topLeft,
     ImVec2 size,
     float zoom,
@@ -677,7 +669,7 @@ static bool DrawInputSlot(
 
     ImGui::SetCursorScreenPos(topLeft);
     ImGui::PushID(block.Id);
-    ImGui::PushID((int)slotIndex);
+    ImGui::PushID((const void *)slot.Item);
     ImGui::SetNextItemWidth(size.x);
 
     if (ImGui::InputText("##input", &text))

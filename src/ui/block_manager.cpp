@@ -49,7 +49,7 @@ VisualBlock *BlockManager::AddBlock(const BlockDefinition &def, ImVec2 worldPos)
     block->Pos = worldPos;
 
     for (const BlockSchemaItem &item : def.Schema) {
-        if (item.Type == BlockSchemaType::Body)
+        if (item.Type == BlockSchemaType::Body || item.Type == BlockSchemaType::LineBreak)
             continue;
         block->Args.emplace(item.Name, MakeDefaultArg(def, item));
     }

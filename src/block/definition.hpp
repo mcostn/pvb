@@ -13,6 +13,7 @@ enum class BlockSchemaType
     Input,
     Var,
     Body,
+    LineBreak,
 };
 
 struct BlockSchemaItem

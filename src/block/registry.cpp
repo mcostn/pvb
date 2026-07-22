@@ -752,17 +752,17 @@ BlockRegistry GetBlockRegistry()
     }));
 
     DISCARD(out.RegisterBlock({
-        .Fmt = "For {any:$var} from {int:start=0} to {int:end=10} {body:body}",
-        .Description = "Repeats the enclosed blocks, counting a variable from start to end",
+        .Fmt = "For {int:$var}\nfrom {int:start=0} to {int:end=10}\nwith step {int:step=1}\n{body:body}",
+        .Description = "Repeats the enclosed blocks, counting an existing variable from start to end by step",
         .OpCode = "for",
         .Category = BlockCategory::ControlFlow,
         .StmtBuilder = [](BlockConverter &c, const BlockInstance &b) {
             const auto *varRef = std::get_if<VariableRef>(&b.Args.at("var"));
-            std::string varName = varRef ? varRef->Name : "i";
+            std::string varName = varRef ? varRef->Name : "";
 
-            auto init = DeclVar(VAL_INT, varName, c.ResolveArg(b.Args.at("start"), VAL_INT));
+            auto init = ExprStatement(Assign(varName, c.ResolveArg(b.Args.at("start"), VAL_INT)));
             auto cond = Less(Var(varName, VAL_INT), c.ResolveArg(b.Args.at("end"), VAL_INT));
-            auto update = Assign(varName, Add(Var(varName, VAL_INT), Int(1)));
+            auto update = Assign(varName, Add(Var(varName, VAL_INT), c.ResolveArg(b.Args.at("step"), VAL_INT)));
 
             return For(
                     std::move(init),
