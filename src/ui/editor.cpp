@@ -41,7 +41,9 @@ void Editor::Draw()
 
     if (ShowOutputPanel) {
         constexpr float SplitterHeight = 4.0f;
-        OutputPanelHeight = std::clamp(OutputPanelHeight, 80.0f, avail.y * 0.6f);
+        constexpr float MinMainContentHeight = 100.0f;
+
+        OutputPanelHeight = std::min(OutputPanelHeight, avail.y - SplitterHeight - MinMainContentHeight);
 
         const float mainHeight = avail.y - OutputPanelHeight - SplitterHeight;
         DrawMainContent(ImVec2(avail.x, mainHeight));
@@ -397,35 +399,41 @@ void Editor::DrawMainContent(const ImVec2 &size)
 {
     ImGui::BeginChild("##main_content", size, false, ImGuiWindowFlags_NoScrollbar);
 
-    if (ShowPalette) {
-        float height = ImGui::GetContentRegionAvail().y;
-        Palette.Draw(CanvasView, Registry, "palette", height);
-        ImGui::SameLine();
-    }
+    const int columnCount = 1 + (ShowPalette ? 1 : 0) + (ShowCodeView ? 1 : 0);
 
-    if (ShowCodeView) {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
+    constexpr ImGuiTableFlags flags =
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_BordersInnerV;
 
-        constexpr ImGuiTableFlags flags =
-            ImGuiTableFlags_Resizable |
-            ImGuiTableFlags_BordersInnerV;
+    ImVec2 avail = ImGui::GetContentRegionAvail();
 
-        if (ImGui::BeginTable("##canvas_code_split", 2, flags, avail)) {
-            ImGui::TableSetupColumn("Canvas", ImGuiTableColumnFlags_WidthStretch, 0.65f);
-            ImGui::TableSetupColumn("Code", ImGuiTableColumnFlags_WidthStretch, 0.35f);
+    if (ImGui::BeginTable("##main_layout", columnCount, flags, avail)) {
+        if (ShowPalette)
+            ImGui::TableSetupColumn("Palette", ImGuiTableColumnFlags_WidthFixed, PaletteWidth);
 
-            ImGui::TableNextRow(ImGuiTableRowFlags_None, avail.y);
+        ImGui::TableSetupColumn("Canvas", ImGuiTableColumnFlags_WidthStretch, 0.65f);
 
+        if (ShowCodeView)
+            ImGui::TableSetupColumn("Code", ImGuiTableColumnFlags_WidthFixed, CodeViewWidth);
+
+        ImGui::TableNextRow(ImGuiTableRowFlags_None, avail.y);
+
+        if (ShowPalette) {
             ImGui::TableSetColumnIndex(0);
-            CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
-
-            ImGui::TableSetColumnIndex(1);
-            Code.Draw("codeview", ImGui::GetContentRegionAvail());
-
-            ImGui::EndTable();
+            Palette.Width = ImGui::GetContentRegionAvail().x;
+            Palette.Draw(CanvasView, Registry, "palette", ImGui::GetContentRegionAvail().y);
         }
-    } else {
+
+        ImGui::TableSetColumnIndex(ShowPalette ? 1 : 0);
         CanvasView.Draw("canvas", ImGui::GetContentRegionAvail());
+
+        if (ShowCodeView) {
+            ImGui::TableSetColumnIndex(ShowPalette ? 2 : 1);
+            CodeViewWidth = ImGui::GetContentRegionAvail().x;
+            Code.Draw("codeview", ImGui::GetContentRegionAvail());
+        }
+
+        ImGui::EndTable();
     }
 
     ImGui::EndChild();

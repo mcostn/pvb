@@ -29,8 +29,7 @@ public:
     void DrawMenuBar();
 
     float PaletteWidth = 260.0f;
-    static constexpr float PaletteMinWidth = 180.0f;
-    static constexpr float PaletteMaxWidth = 450.0f;
+    float CodeViewWidth = 360.0f;
     bool ShowPalette = true;
     BlockPalette Palette;
     PaletteDragState Drag;
@@ -70,6 +69,7 @@ public:
 
     bool ShowOutputPanel = false;
     float OutputPanelHeight = 180.0f;
+
     std::string OutputTitle;
     std::string OutputText;
     bool OutputScrollToBottom = false;
