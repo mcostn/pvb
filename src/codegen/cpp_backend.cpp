@@ -300,7 +300,7 @@ Error CppEmitter::Visit(const ForStmt &stmt)
     if (stmt.Init) {
        if (stmt.Init->Kind == AstNodeKind::ExprStmt) {
            auto &exprStmt = static_cast<const ExprStmt&>(*stmt.Init);
-           TRY(Emit(*exprStmt.Expression));
+           TRY(Emit(exprStmt));
        } else if (stmt.Init->Kind == AstNodeKind::DeclVarStmt) {
            auto &declStmt = static_cast<const DeclVarStmt&>(*stmt.Init);
            TRY(Emit(declStmt));
