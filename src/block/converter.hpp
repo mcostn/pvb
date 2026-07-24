@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -23,4 +24,6 @@ public:
 
     std::unordered_map<std::string, StmtBuilder> StmtBuilders;
     std::unordered_map<std::string, ExprBuilder> ExprBuilders;
+
+    std::unordered_map<const AstNode*, uint32_t> NodeSourceIds;
 };

@@ -56,6 +56,7 @@ std::unique_ptr<BlockInstance> CloneInstance(const BlockInstance &src)
 {
     auto copy = std::make_unique<BlockInstance>();
     copy->OpCode = src.OpCode;
+    copy->SourceId = src.SourceId;
 
     for (const auto &[key, arg] : src.Args) {
         copy->Args.emplace(key, std::visit([](const auto &value) -> BlockArg

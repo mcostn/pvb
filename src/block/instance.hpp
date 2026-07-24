@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <variant>
 #include <string>
@@ -27,4 +28,6 @@ struct BlockInstance
     std::string OpCode;
     std::unordered_map<std::string, BlockArg> Args;
     std::unordered_map<std::string, std::vector<std::unique_ptr<BlockInstance>>> Bodies;
+
+    uint32_t SourceId = 0;
 };

@@ -1,6 +1,8 @@
 #include "ui/code_view.hpp"
 
+#include <algorithm>
 #include <sstream>
+#include <unordered_map>
 
 #include "util/error.hpp"
 #include "util/macro.hpp"
@@ -30,6 +32,7 @@ BlockInstance ConvertVisualBlock(const VisualBlock &block)
 {
     BlockInstance inst;
     inst.OpCode = block.Def ? block.Def->OpCode : std::string();
+    inst.SourceId = block.Id;
 
     for (const auto &[key, arg] : block.Args) {
         inst.Args.emplace(key, ConvertVisualArg(arg));
@@ -80,6 +83,9 @@ static Error BuildCustomFunction(
     std::string name = CustomBlockName(*hatRoot->Def);
     outFn = Function(VAL_NONE, name, CustomBlockParams(*hatRoot->Def), std::move(body));
 
+    if (hatRoot->Id != 0)
+        registry.Converter.NodeSourceIds[outFn.get()] = hatRoot->Id;
+
     return Error::Ok;
 }
 
@@ -98,6 +104,8 @@ Error BuildProgramFromCanvas(
         BlockRegistry &registry,
         Program &outProgram)
 {
+    registry.Converter.NodeSourceIds.clear();
+
     for (const VariableInfo &var : registry.Variables) {
         outProgram.Statements.push_back(
                 DeclVar(var.Type, var.Name, nullptr, VarScope::Global));
@@ -179,9 +187,42 @@ std::unique_ptr<Emitter> CodeView::CreateEmitter(CodeLanguage language, std::ost
     return nullptr;
 }
 
+namespace {
+
+struct RawRange
+{
+    std::ostream *Stream;
+    size_t Start;
+    size_t End;
+};
+
+size_t ResolveAbsoluteOffset(
+        std::ostream *stream,
+        size_t offset,
+        const std::vector<Emitter::StreamSplice> &splices,
+        std::ostream *root)
+{
+    while (stream != root) {
+        auto it = std::find_if(splices.begin(), splices.end(),
+                [&](const Emitter::StreamSplice &s) { return s.From == stream; });
+
+        if (it == splices.end())
+            return offset;
+
+        offset += it->OffsetInto;
+        stream = it->Into;
+    }
+
+    return offset;
+}
+
+} // namespace
+
 Error CodeView::Generate(Canvas &canvas, BlockRegistry &registry, CodeLanguage language)
 {
     SetCode("");
+    Map.Clear();
+    LastHighlightedId = 0;
 
     Program program;
     TRY(BuildProgramFromCanvas(canvas, registry, program));
@@ -190,10 +231,29 @@ Error CodeView::Generate(Canvas &canvas, BlockRegistry &registry, CodeLanguage l
     std::unique_ptr<Emitter> emitter = CreateEmitter(language, &stream);
     FAIL_COND_V_MSG(!emitter, Error::Failed, "No emitter available for the requested language");
 
+    std::unordered_map<const AstNode*, RawRange> nodeRanges;
+    emitter->OnEmitRange = [&](const AstNode &node, std::ostream *s, size_t start, size_t end) {
+        nodeRanges[&node] = { s, start, end };
+    };
+
     Error err = emitter->Emit(program);
     FAIL_COND_V_MSG(err != Error::Ok, err, "Code generation failed");
 
-    SetCode(stream.str());
+    LastGeneratedCode = stream.str();
+    SetCode(LastGeneratedCode);
+
+    for (const auto &[node, blockId] : registry.Converter.NodeSourceIds) {
+        auto it = nodeRanges.find(node);
+        if (it == nodeRanges.end())
+            continue; // e.g. a block whose expression got optimized away entirely
+
+        const RawRange &raw = it->second;
+        size_t absStart = ResolveAbsoluteOffset(raw.Stream, raw.Start, emitter->Splices, &stream);
+        size_t absEnd   = ResolveAbsoluteOffset(raw.Stream, raw.End,   emitter->Splices, &stream);
+
+        if (absEnd > absStart)
+            Map.Add(blockId, { absStart, absEnd });
+    }
 
     switch (language) {
         case CodeLanguage::Cpp:    SetLanguage(TextEditor::LanguageDefinition::CPlusPlus()); break;
@@ -201,4 +261,29 @@ Error CodeView::Generate(Canvas &canvas, BlockRegistry &registry, CodeLanguage l
     }
 
     return Error::Ok;
+}
+
+void CodeView::HighlightBlock(uint32_t blockId)
+{
+    if (blockId == LastHighlightedId)
+        return;
+
+    LastHighlightedId = blockId;
+
+    const SourceRange *range = blockId ? Map.Find(blockId) : nullptr;
+    if (!range) {
+        ClearHighlight();
+        return;
+    }
+
+    TextEditor::Coordinates start = SourceMap::OffsetToCoordinates(LastGeneratedCode, range->Start);
+    TextEditor::Coordinates end   = SourceMap::OffsetToCoordinates(LastGeneratedCode, range->End);
+
+    Editor.SetSelection(start, end);
+}
+
+void CodeView::ClearHighlight()
+{
+    TextEditor::Coordinates cursor = Editor.GetCursorPosition();
+    Editor.SetSelection(cursor, cursor);
 }

@@ -149,9 +149,9 @@ Error CppEmitter::Visit(const Program &program)
     if (!Context.Includes.empty() || !Context.Namespaces.empty())
         Out() << "\n";
 
-    std::string globals = GlobalVars.str();
-    if (!globals.empty()) {
-        Out() << globals << "\n";
+    if (GlobalVars.str().size() > 0) {
+        AppendStream(GlobalVars);
+        Out() << "\n";
     }
 
     for (auto &func : Context.FunctionDeclarations)
@@ -167,12 +167,13 @@ Error CppEmitter::Visit(const Program &program)
         Out() << "srand(time(nullptr));\n\n";
         IndentLevel--;
     }
-    Out() << Main.str();
+    AppendStream(Main);
     Out() << "}\n";
 
-    std::string funcImpl = Functions.str();
-    if (!funcImpl.empty())
-        Out() << "\n" << funcImpl;
+    if (Functions.str().size() > 0) {
+        Out() << "\n";
+        AppendStream(Functions);
+    }
 
     return Error::Ok;
 }

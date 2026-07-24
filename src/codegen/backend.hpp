@@ -1,6 +1,11 @@
 #pragma once
 
 #include <cassert>
+#include <functional>
+#include <ostream>
+#include <sstream>
+#include <vector>
+
 #include "codegen/frontend.hpp"
 #include "util/error.hpp"
 #include "util/macro.hpp"
@@ -10,6 +15,18 @@ class Emitter
 public:
     explicit Emitter(std::ostream *stream) : StreamStack{stream} {}
     virtual ~Emitter() = default;
+
+    using SourceRangeFn = std::function<void(const AstNode&, std::ostream *stream, size_t start, size_t end)>;
+    SourceRangeFn OnEmitRange;
+
+    struct StreamSplice
+    {
+        std::ostream *Into;
+        size_t OffsetInto;
+        std::ostream *From;
+    };
+    std::vector<StreamSplice> Splices;
+    void AppendStream(std::ostringstream &sub);
 
     Error Emit(const Program &p) { return Visit(p); };
 
@@ -68,6 +85,17 @@ public:
 
     std::vector<std::ostream*> StreamStack;
     std::ostream &Out() { return *StreamStack.back(); }
-    void PushOut(std::ostream* out) { StreamStack.push_back(out); }
-    void PopOut() { assert(StreamStack.size() > 1); StreamStack.pop_back(); }
+    void PushOut(std::ostream* out);
+    void PopOut();
+
+private:
+    std::vector<const AstNode*> NodeStack;
+
+    struct PendingPushRange
+    {
+        const AstNode *Node;
+        std::ostream *Stream;
+        std::streampos Start;
+    };
+    std::vector<PendingPushRange> PendingPushRanges;
 };

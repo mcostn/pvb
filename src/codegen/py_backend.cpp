@@ -116,16 +116,17 @@ Error PythonEmitter::Visit(const Program &program)
     if (!sortedImports.empty())
         Out() << "\n";
 
-    std::string globals = GlobalVars.str();
-    if (!globals.empty()) {
-        Out() << globals << "\n";
+    if (GlobalVars.str().size() > 0) {
+        AppendStream(GlobalVars);
+        Out() << "\n";
     }
 
-    std::string func = Functions.str();
-    if (!func.empty()) {
-        Out() << func << "\n";
+    if (Functions.str().size() > 0) {
+        AppendStream(Functions);
+        Out() << "\n";
     }
-    Out() << Main.str();
+
+    AppendStream(Main);
 
     return Error::Ok;
 }

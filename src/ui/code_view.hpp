@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,6 +11,7 @@
 
 #include "ui/imgui.hpp"
 #include "ui/canvas.hpp"
+#include "ui/source_map.hpp"
 #include "block/registry.hpp"
 #include "codegen/backend.hpp"
 
@@ -33,7 +35,16 @@ public:
 
     void Draw(const char *strId, ImVec2 size);
 
+    void HighlightBlock(uint32_t blockId);
+    void ClearHighlight();
+
     bool ReadOnly = true;
     std::unique_ptr<Emitter> CreateEmitter(CodeLanguage language, std::ostream *stream);
     TextEditor Editor;
+
+    SourceMap Map;
+
+private:
+    std::string LastGeneratedCode;
+    uint32_t LastHighlightedId = 0;
 };

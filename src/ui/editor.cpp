@@ -430,6 +430,7 @@ void Editor::DrawMainContent(const ImVec2 &size)
         if (ShowCodeView) {
             ImGui::TableSetColumnIndex(ShowPalette ? 2 : 1);
             CodeViewWidth = ImGui::GetContentRegionAvail().x;
+            Code.HighlightBlock(CanvasView.HoveredBlockId);
             Code.Draw("codeview", ImGui::GetContentRegionAvail());
         }
 

@@ -2,64 +2,111 @@
 
 Error Emitter::Emit(const AstNode &node)
 {
+    std::ostream *streamBefore = &Out();
+    std::streampos startPos = streamBefore->tellp();
+
+    NodeStack.push_back(&node);
+
+    Error err = Error::Unreachable;
     switch (node.Kind) {
         case AstNodeKind::Program:
-            return Visit(static_cast<const Program&>(node));
+            err = Visit(static_cast<const Program&>(node)); break;
 
         case AstNodeKind::LiteralExpr:
-            return Visit(static_cast<const LiteralExpr&>(node));
+            err = Visit(static_cast<const LiteralExpr&>(node)); break;
 
         case AstNodeKind::VariableExpr:
-            return Visit(static_cast<const VariableExpr&>(node));
+            err = Visit(static_cast<const VariableExpr&>(node)); break;
 
         case AstNodeKind::AssignExpr:
-            return Visit(static_cast<const AssignExpr&>(node));
+            err = Visit(static_cast<const AssignExpr&>(node)); break;
 
         case AstNodeKind::UnaryExpr:
-            return Visit(static_cast<const UnaryExpr&>(node));
+            err = Visit(static_cast<const UnaryExpr&>(node)); break;
 
         case AstNodeKind::BinaryExpr:
-            return Visit(static_cast<const BinaryExpr&>(node));
+            err = Visit(static_cast<const BinaryExpr&>(node)); break;
 
         case AstNodeKind::CallExpr:
-            return Visit(static_cast<const CallExpr&>(node));
+            err = Visit(static_cast<const CallExpr&>(node)); break;
 
         case AstNodeKind::PrintStmt:
-            return Visit(static_cast<const PrintStmt&>(node));
+            err = Visit(static_cast<const PrintStmt&>(node)); break;
 
         case AstNodeKind::ReadStmt:
-            return Visit(static_cast<const ReadStmt&>(node));
+            err = Visit(static_cast<const ReadStmt&>(node)); break;
 
         case AstNodeKind::ExitStmt:
-            return Visit(static_cast<const ExitStmt&>(node));
+            err = Visit(static_cast<const ExitStmt&>(node)); break;
 
         case AstNodeKind::ExprStmt:
-            return Visit(static_cast<const ExprStmt&>(node));
+            err = Visit(static_cast<const ExprStmt&>(node)); break;
 
         case AstNodeKind::BlockStmt:
-            return Visit(static_cast<const BlockStmt&>(node));
+            err = Visit(static_cast<const BlockStmt&>(node)); break;
 
         case AstNodeKind::FunctionStmt:
-            return Visit(static_cast<const FunctionStmt&>(node));
+            err = Visit(static_cast<const FunctionStmt&>(node)); break;
 
         case AstNodeKind::IfStmt:
-            return Visit(static_cast<const IfStmt&>(node));
+            err = Visit(static_cast<const IfStmt&>(node)); break;
 
         case AstNodeKind::WhileStmt:
-            return Visit(static_cast<const WhileStmt&>(node));
+            err = Visit(static_cast<const WhileStmt&>(node)); break;
 
         case AstNodeKind::ForStmt:
-            return Visit(static_cast<const ForStmt&>(node));
+            err = Visit(static_cast<const ForStmt&>(node)); break;
 
         case AstNodeKind::LoopStmt:
-            return Visit(static_cast<const LoopStmt&>(node));
+            err = Visit(static_cast<const LoopStmt&>(node)); break;
 
         case AstNodeKind::DeclVarStmt:
-            return Visit(static_cast<const DeclVarStmt&>(node));
-
+            err = Visit(static_cast<const DeclVarStmt&>(node)); break;
     }
 
-    return Error::Unreachable;
+    NodeStack.pop_back();
+
+    std::ostream *streamAfter = &Out();
+    if (OnEmitRange && streamBefore == streamAfter) {
+        std::streampos endPos = streamAfter->tellp();
+        if (endPos != startPos)
+            OnEmitRange(node, streamAfter, (size_t)startPos, (size_t)endPos);
+    }
+
+    return err;
+}
+
+void Emitter::PushOut(std::ostream *out)
+{
+    StreamStack.push_back(out);
+
+    if (!NodeStack.empty())
+        PendingPushRanges.push_back({ NodeStack.back(), out, out->tellp() });
+}
+
+void Emitter::PopOut()
+{
+    assert(StreamStack.size() > 1);
+    std::ostream *out = StreamStack.back();
+    StreamStack.pop_back();
+
+    if (!PendingPushRanges.empty() && PendingPushRanges.back().Stream == out) {
+        PendingPushRange pending = PendingPushRanges.back();
+        PendingPushRanges.pop_back();
+
+        if (OnEmitRange) {
+            std::streampos endPos = out->tellp();
+            if (endPos != pending.Start)
+                OnEmitRange(*pending.Node, out, (size_t)pending.Start, (size_t)endPos);
+        }
+    }
+}
+
+void Emitter::AppendStream(std::ostringstream &sub)
+{
+    size_t offset = (size_t)Out().tellp();
+    Splices.push_back({ &Out(), offset, &sub });
+    Out() << sub.str();
 }
 
 Error Emitter::EmitStatementList(const BlockStmt& block)

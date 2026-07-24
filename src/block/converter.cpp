@@ -8,7 +8,11 @@ std::unique_ptr<Stmt> BlockConverter::ConvertStmt(const BlockInstance &block)
         return nullptr;
     }
 
-    return it->second(*this, block);
+    std::unique_ptr<Stmt> stmt = it->second(*this, block);
+    if (stmt && block.SourceId != 0)
+        NodeSourceIds[stmt.get()] = block.SourceId;
+
+    return stmt;
 }
 
 std::unique_ptr<Expr> BlockConverter::ConvertExpr(const BlockInstance &block)
@@ -19,7 +23,11 @@ std::unique_ptr<Expr> BlockConverter::ConvertExpr(const BlockInstance &block)
         return nullptr;
     }
 
-    return it->second(*this, block);
+    std::unique_ptr<Expr> expr = it->second(*this, block);
+    if (expr && block.SourceId != 0)
+        NodeSourceIds[expr.get()] = block.SourceId;
+
+    return expr;
 }
 
 std::unique_ptr<BlockStmt> BlockConverter::ConvertBody(const std::vector<std::unique_ptr<BlockInstance>> &blocks)

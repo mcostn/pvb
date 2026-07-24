@@ -98,6 +98,7 @@ if(BUILD_GUI)
         "src/ui/app.cpp"
         "src/ui/code_view.cpp"
         "src/ui/custom_block.cpp"
+        "src/ui/source_map.cpp"
     )
     target_link_libraries(
         ui
