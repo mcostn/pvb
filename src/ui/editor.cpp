@@ -1,10 +1,13 @@
 #include "ui/editor.hpp"
 #include "ui/imgui.hpp"
 #include "ui/project.hpp"
+#include "ui/scale.hpp"
 
 #include "ImGuiFileDialog.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 
@@ -152,10 +155,36 @@ void Editor::DrawMenuBar()
         ImGui::MenuItem("Output", nullptr, &ShowOutputPanel);
         ImGui::MenuItem("Debug", nullptr, &CanvasView.ShowDebugWindow);
 
+        ImGui::Separator();
+
+        DrawUiScaleMenu();
+
         ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
+}
+
+void Editor::DrawUiScaleMenu()
+{
+    if (!ImGui::BeginMenu("UI Scale"))
+        return;
+
+    const float scale = GetUiScale();
+
+    ImGui::TextDisabled("Current: %.0f%%", scale * 100.0f);
+    ImGui::Separator();
+
+    for (float option : kUiScaleOptions) {
+        char label[16];
+        std::snprintf(label, sizeof(label), "%.0f%%", option * 100.0f);
+
+        bool selected = std::fabs(scale - option) < 0.01f;
+        if (ImGui::MenuItem(label, nullptr, selected))
+            SetUiScale(option);
+    }
+
+    ImGui::EndMenu();
 }
 
 void Editor::DrawProjectSettingsPopup()

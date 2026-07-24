@@ -1,4 +1,5 @@
 #include "ui/app.hpp"
+#include "ui/scale.hpp"
 
 Error Window::Init(const char *title, int width, int height)
 {
@@ -7,7 +8,6 @@ Error Window::Init(const char *title, int width, int height)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 
     Handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
     FAIL_COND_V(!Handle, Error::Failed);
@@ -17,12 +17,15 @@ Error Window::Init(const char *title, int width, int height)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.IniFilename = nullptr;
 
     ImGui_ImplGlfw_InitForOpenGL(Handle, true);
     ImGui_ImplOpenGL3_Init("#version 330");
+
+    InitUiScale(kDefaultUiScale);
 
     return Error::Ok;
 }

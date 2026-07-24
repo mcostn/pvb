@@ -6,6 +6,7 @@
 
 #include "ui/block.hpp"
 #include "ui/const.hpp"
+#include "ui/scale.hpp"
 #include "block/registry.hpp"
 
 static std::vector<BlockRow> BuildRows(const BlockSchema &schema);
@@ -181,8 +182,8 @@ BlockLayout ComputeBlockLayout(
                 const char *label = item->Name.empty() ? " " : item->Name.c_str();
 
                 slot.Size = ImGui::CalcTextSize(label);
-                slot.Size.x += kTextHorizontalPadding * 2.0f;
-                slot.Size.y += kTextVerticalPadding * 2.0f;
+                slot.Size.x += kTextHorizontalPadding * 2.0f * GetUiScale();
+                slot.Size.y += kTextVerticalPadding * 2.0f * GetUiScale();
                 tallest = std::max(tallest, slot.Size.y);
                 row.Slots.push_back(std::move(slot));
             }
@@ -216,7 +217,7 @@ BlockLayout ComputeBlockLayout(
                         {
                             const char *label = item->Name.empty() ? " " : item->Name.c_str();
                             slot.Size = ImGui::CalcTextSize(label);
-                            slot.Size.x += kTextHorizontalPadding * 2.0f;
+                            slot.Size.x += kTextHorizontalPadding * 2.0f * GetUiScale();
                             break;
                         }
 
@@ -535,7 +536,7 @@ static void DrawTextSlot(
             label);
 
     ImVec2 textPos(
-        topLeft.x + kTextHorizontalPadding * zoom,
+        topLeft.x + kTextHorizontalPadding * zoom * GetUiScale(),
         topLeft.y + (size.y - textSize.y) * 0.5f);
 
     drawList->AddText(
@@ -633,8 +634,9 @@ static bool DrawInputSlot(
     ImU32 boxColor = Darken(CategoryColor(block.Def->Category));
 
     if (!interactive) {
-        drawList->AddRectFilled(topLeft, topLeft + size, boxColor, 2.0f * zoom);
-        drawList->AddRect(topLeft, topLeft + size, IM_COL32(0, 0, 0, 120), 2.0f * zoom, 0, 1.0f);
+        float rounding = 2.0f * zoom * GetUiScale();
+        drawList->AddRectFilled(topLeft, topLeft + size, boxColor, rounding);
+        drawList->AddRect(topLeft, topLeft + size, IM_COL32(0, 0, 0, 120), rounding, 0, 1.0f);
 
         ImFont *font = ImGui::GetFont();
         float fontSize = ImGui::GetFontSize() * zoom;
@@ -644,7 +646,7 @@ static bool DrawInputSlot(
         drawList->AddText(
                 font,
                 fontSize,
-                topLeft + ImVec2(4.0f * zoom, (size.y - textHeight) * 0.5f),
+                topLeft + ImVec2(4.0f * zoom * GetUiScale(), (size.y - textHeight) * 0.5f),
                 IM_COL32(255,255,255,255),
                 text.c_str());
         drawList->PopClipRect();

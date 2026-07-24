@@ -27,6 +27,7 @@ public:
 
     void Draw();
     void DrawMenuBar();
+    void DrawUiScaleMenu();
 
     float PaletteWidth = 260.0f;
     float CodeViewWidth = 360.0f;

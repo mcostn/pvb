@@ -6,6 +6,7 @@
 #include "ui/canvas.hpp"
 #include "ui/const.hpp"
 #include "ui/custom_block.hpp"
+#include "ui/scale.hpp"
 #include "block/registry.hpp"
 #include "util/macro.hpp"
 #include "util/error.hpp"
@@ -186,7 +187,7 @@ void Canvas::LayoutChain(VisualBlock *head)
             if (!body)
                 continue;
 
-            body->Pos = ImVec2(head->Pos.x + kBodyIndent, head->Pos.y + row.Top);
+            body->Pos = ImVec2(head->Pos.x + kBodyIndent * GetUiScale(), head->Pos.y + row.Top);
 
             LayoutChain(body);
 
@@ -194,7 +195,7 @@ void Canvas::LayoutChain(VisualBlock *head)
             for (VisualBlock *b = body; b; b = b->Next)
                 bodyHeight += b->Size.y;
 
-            float newHeight = std::max(kBodyMinHeight, bodyHeight);
+            float newHeight = std::max(kBodyMinHeight * GetUiScale(), bodyHeight);
             shift += newHeight - row.Height;
             row.Height = newHeight;
         }
@@ -219,15 +220,23 @@ void Canvas::LayoutBlock(VisualBlock &block)
         }
     }
 
+    const float scale = GetUiScale();
+
     LayoutMetrics m;
     m.Padding = ImGui::GetStyle().FramePadding;
     m.FontSize = ImGui::GetFontSize();
     m.LineHeightFactor = kLineHeightFactor;
-    m.RowGap = kRowGap;
-    m.BodyMinHeight = kBodyMinHeight;
-    m.BodyIndent = kBodyIndent;
-    m.BodyBottomBarHeight = kBodyBottomBarHeight;
-    m.MinBlockWidth = kMinBlockWidth;
+    m.RowGap = kRowGap * scale;
+    m.BodyMinHeight = kBodyMinHeight * scale;
+    m.BodyIndent = kBodyIndent * scale;
+    m.BodyBottomBarHeight = kBodyBottomBarHeight * scale;
+    m.MinBlockWidth = kMinBlockWidth * scale;
+    m.BodyNotchWidth *= scale;
+    m.NotchHeight *= scale;
+    m.VarSlotWidth *= scale;
+    m.TokenGap *= scale;
+    m.MinInputWidth *= scale;
+    m.MaxInputWidth *= scale;
 
     block.Layout = ComputeBlockLayout(*block.Def, block, m);
     block.Size = block.Layout.Size;
@@ -583,8 +592,9 @@ void Canvas::DrawSnapPreview(ImDrawList *drawList, ImVec2 origin)
         case SnapType::EnterBody: {
             float bodyTop = FindBodyTop(target, CurrentSnap.Slot);
 
-            ImVec2 p = WorldToScreen(target.Pos + ImVec2(kBodyIndent, bodyTop), origin);
-            float width = (target.Size.x - kBodyIndent) * Zoom;
+            float bodyIndent = kBodyIndent * GetUiScale();
+            ImVec2 p = WorldToScreen(target.Pos + ImVec2(bodyIndent, bodyTop), origin);
+            float width = (target.Size.x - bodyIndent) * Zoom;
 
             DrawStatementSnapPreview(drawList, p, width, Zoom, kSnapColor);
             break;
@@ -1063,10 +1073,12 @@ BlockOutline BuildOutline(
 {
     ImVec2 screenSize = block.Size * zoom;
 
-    float notchInset = 14.0f * zoom;
-    float notchWidth = 22.0f * zoom;
-    float notchDepth = 6.0f * zoom;
-    float bodyIndent = kBodyIndent * zoom;
+    const float effectiveZoom = zoom * GetUiScale();
+
+    float notchInset = 14.0f * effectiveZoom;
+    float notchWidth = 22.0f * effectiveZoom;
+    float notchDepth = 6.0f * effectiveZoom;
+    float bodyIndent = kBodyIndent * effectiveZoom;
 
     switch (block.Def->Shape)
     {
