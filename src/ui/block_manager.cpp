@@ -33,13 +33,6 @@ static const BlockSchemaItem *FindSchemaItem(const BlockDefinition *def, const s
     return nullptr;
 }
 
-static float DistanceToRect(ImVec2 p, ImVec2 rectMin, ImVec2 rectMax)
-{
-    float dx = std::max({rectMin.x - p.x, 0.0f, p.x - rectMax.x});
-    float dy = std::max({rectMin.y - p.y, 0.0f, p.y - rectMax.y});
-    return std::sqrt(dx * dx + dy * dy);
-}
-
 VisualBlock *BlockManager::AddBlock(const BlockDefinition &def, ImVec2 worldPos)
 {
     auto block = std::make_unique<VisualBlock>();
@@ -688,7 +681,7 @@ void BlockManager::SearchChainForSnap(VisualBlock *chain, VisualBlock *dragging,
         }
 
         if (IsReporter(dragging)) {
-            ImVec2 dragCenter = dragging->Pos + dragging->Size * 0.5f;
+            ImVec2 dragTop = TopSnap(*dragging);
 
             for (const RowLayout &row : block->Layout.Rows) {
                 if (row.IsBody)
@@ -705,10 +698,11 @@ void BlockManager::SearchChainForSnap(VisualBlock *chain, VisualBlock *dragging,
                          std::holds_alternative<VariableRef>(arg->second)))
                         continue;
 
-                    ImVec2 rectMin = block->Pos + argSlot.Pos;
-                    ImVec2 rectMax = rectMin + argSlot.Size;
+                    ImVec2 slotTop = block->Pos + argSlot.Pos;
 
-                    float adist = DistanceToRect(dragCenter, rectMin, rectMax);
+                    float dx = slotTop.x - dragTop.x;
+                    float dy = slotTop.y - dragTop.y;
+                    float adist = std::sqrt(dx * dx + dy * dy);
 
                     if (adist < bestDist) {
                         bestDist = adist;
