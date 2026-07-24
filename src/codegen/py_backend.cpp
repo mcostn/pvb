@@ -175,7 +175,6 @@ Error PythonEmitter::Visit(const ExitStmt &stmt)
 
 Error PythonEmitter::Visit(const ExprStmt &stmt)
 {
-    Indent();
     TRY(Emit(stmt.Expression));
     return Error::Ok;
 }
@@ -250,6 +249,7 @@ Error PythonEmitter::Visit(const WhileStmt &stmt)
 Error PythonEmitter::Visit(const ForStmt &stmt)
 {
     if (stmt.Init) {
+        Indent();
         TRY(Emit(*stmt.Init));
         Out() << "\n";
     }
@@ -267,18 +267,15 @@ Error PythonEmitter::Visit(const ForStmt &stmt)
         }
 
         TRY(Emit(*stmt.Body));
-        if (stmt.Body->Kind != AstNodeKind::BlockStmt)
+        if (stmt.Body->Kind != AstNodeKind::BlockStmt) {
             Out() << "\n";
+        }
 
         if (stmt.Update) {
             Out() << "\n";
             ++IndentLevel;
             Indent();
             TRY(Emit(*stmt.Update));
-            --IndentLevel;
-        }
-
-        if (stmt.Body->Kind != AstNodeKind::BlockStmt) {
             --IndentLevel;
         }
     }
@@ -304,7 +301,6 @@ Error PythonEmitter::Visit(const DeclVarStmt &stmt)
 {
     if (stmt.Scope == VarScope::Global) PushOut(&GlobalVars);
 
-    Indent();
     Out() << stmt.Name;
 
     if (stmt.Initializer) {
