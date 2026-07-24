@@ -15,12 +15,12 @@ if exist "%ARCHIVE%" del "%ARCHIVE%"
 call init.bat --release --reconfigure -DBUILD_TESTS=OFF
 if errorlevel 1 exit /b %errorlevel%
 
-cmake --build "%BUILD_DIR%" --parallel
+cmake --build "%BUILD_DIR%" --config Release --parallel
 if errorlevel 1 exit /b %errorlevel%
 
 mkdir "%PACKAGE_DIR%"
 
-copy "%BUILD_DIR%\%APP_NAME%.exe" "%PACKAGE_DIR%\" >nul
+copy "%BUILD_DIR%\Release\%APP_NAME%.exe" "%PACKAGE_DIR%\" >nul
 xcopy "examples" "%PACKAGE_DIR%\examples\" /E /I /Q >nul
 
 tar -a -c -f "%ARCHIVE%" -C "%PACKAGE_ROOT%" "%PACKAGE_NAME%"

@@ -8,6 +8,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(BUILD_GUI "Build GUI application" ON)
 option(BUILD_TESTS "Build tests" ON)
 
+# Static linking on Windows
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+	    "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+elseif(MINGW)
+    add_link_options(
+        -static-libgcc
+        -static-libstdc++
+    )
+endif()
 
 # Caching
 find_program(CCACHE_PROGRAM ccache)

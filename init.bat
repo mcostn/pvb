@@ -56,10 +56,10 @@ if errorlevel 1 exit /b %errorlevel%
 :done
 echo.
 echo To build:
-echo   cmake --build %BUILD_DIR% --parallel
+echo   cmake --build %BUILD_DIR% --config %BUILD_TYPE% --parallel
 echo.
 echo To build a target:
-echo   cmake --build %BUILD_DIR% --target ^<target^> --parallel
+echo   cmake --build %BUILD_DIR% --config %BUILD_TYPE% --target ^<target^> --parallel
 
 endlocal
 
