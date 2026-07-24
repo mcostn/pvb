@@ -761,7 +761,7 @@ BlockRegistry GetBlockRegistry()
             std::string varName = varRef ? varRef->Name : "";
 
             auto init = ExprStatement(Assign(varName, c.ResolveArg(b.Args.at("start"), VAL_INT)));
-            auto cond = Less(Var(varName, VAL_INT), c.ResolveArg(b.Args.at("end"), VAL_INT));
+            auto cond = LessEqual(Var(varName, VAL_INT), c.ResolveArg(b.Args.at("end"), VAL_INT));
             auto update = Assign(varName, Add(Var(varName, VAL_INT), c.ResolveArg(b.Args.at("step"), VAL_INT)));
 
             return For(
