@@ -4,6 +4,8 @@
 
 PVB este un limbaj de programare vizual bazat pe un editor cu blocuri. Programele sunt construite prin conectarea blocurilor în locul scrierii codului, ceea ce facilitează experimentarea, prototiparea și înțelegerea fluxului unui program. Proiectele pot fi transpilate în cod sursă, în prezent fiind suportate limbajele C++ și Python.
 
+Documentația pentru Infoeducație poate fi găsită [aici](docs/PVB_Documentatie_Infoeducatie_2026.pdf)
+
 ## Cerințe
 
 ### Compilarea PVB
