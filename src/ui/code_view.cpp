@@ -56,15 +56,13 @@ std::vector<std::unique_ptr<BlockInstance>> ConvertVisualChain(VisualBlock *head
     return out;
 }
 
-static std::vector<Param> CustomBlockParams(const BlockDefinition &hatDef)
+static std::vector<Param> CustomBlockParams(const BlockRegistry &registry, const std::string &funcName)
 {
     std::vector<Param> params;
 
-    for (const BlockSchemaItem &item : hatDef.Schema) {
-        if (item.ValueType == VAL_NONE)
-            continue;
-
-        params.push_back({ item.ValueType, item.Name });
+    for (const BlockDefinition *paramDef : CustomBlockParamDefs(registry, funcName)) {
+        std::string name = paramDef->Schema.empty() ? std::string() : paramDef->Schema.front().Name;
+        params.push_back({ paramDef->ReturnType, std::move(name) });
     }
 
     return params;
@@ -81,7 +79,7 @@ static Error BuildCustomFunction(
     FAIL_COND_V_MSG(!body, Error::Failed, "Failed to convert custom block body to AST");
 
     std::string name = CustomBlockName(*hatRoot->Def);
-    outFn = Function(VAL_NONE, name, CustomBlockParams(*hatRoot->Def), std::move(body));
+    outFn = Function(VAL_NONE, name, CustomBlockParams(registry, name), std::move(body));
 
     if (hatRoot->Id != 0)
         registry.Converter.NodeSourceIds[outFn.get()] = hatRoot->Id;
