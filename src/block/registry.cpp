@@ -145,6 +145,16 @@ Error BlockRegistry::RemoveVariable(const std::string &name)
     Converter.ExprBuilders.erase(VarGetOpCode(name));
     Converter.StmtBuilders.erase(VarSetOpCode(name));
 
+    const std::string getOp = VarGetOpCode(name);
+    const std::string setOp = VarSetOpCode(name);
+
+    Definitions.erase(
+            std::remove_if(
+                    Definitions.begin(),
+                    Definitions.end(),
+                    [&](const BlockDefinition &d) { return d.OpCode == getOp || d.OpCode == setOp; }),
+            Definitions.end());
+
     Variables.erase(it);
 
     return Error::Ok;

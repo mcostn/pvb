@@ -362,6 +362,17 @@ Error LoadProject(
     std::vector<u32> rootIds;
     TRY(ParseIdList(rootsRaw, rootIds));
 
+    // Remove any variables left over from a previously loaded project
+    {
+        std::vector<std::string> existingNames;
+        existingNames.reserve(registry.Variables.size());
+        for (const auto &v : registry.Variables)
+            existingNames.push_back(v.Name);
+
+        for (const auto &n : existingNames)
+            DISCARD(registry.RemoveVariable(n));
+    }
+
     // Variables
     for (u32 i = 0; i < variableCount; ++i) {
         std::string section = "variable" + std::to_string(i);
