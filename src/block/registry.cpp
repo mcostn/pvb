@@ -62,6 +62,145 @@ Error BlockRegistry::RegisterBlock(BlockDefinition def)
     return Error::Ok;
 }
 
+static bool IsValidIdentifier(const std::string &name) {
+    static const std::unordered_set<std::string> kReserved = {
+        // Common
+        "if",
+        "else",
+        "for",
+        "while",
+        "break",
+        "continue",
+        "return",
+        "class",
+        "true",
+        "false",
+        "null",
+
+        // C++
+        "alignas",
+        "alignof",
+        "and",
+        "and_eq",
+        "asm",
+        "auto",
+        "bitand",
+        "bitor",
+        "bool",
+        "case",
+        "catch",
+        "char",
+        "char8_t",
+        "char16_t",
+        "char32_t",
+        "compl",
+        "concept",
+        "const",
+        "consteval",
+        "constexpr",
+        "constinit",
+        "const_cast",
+        "co_await",
+        "co_return",
+        "co_yield",
+        "decltype",
+        "default",
+        "delete",
+        "do",
+        "double",
+        "dynamic_cast",
+        "enum",
+        "explicit",
+        "export",
+        "extern",
+        "float",
+        "friend",
+        "goto",
+        "inline",
+        "int",
+        "long",
+        "mutable",
+        "namespace",
+        "new",
+        "noexcept",
+        "not",
+        "not_eq",
+        "operator",
+        "or",
+        "or_eq",
+        "private",
+        "protected",
+        "public",
+        "register",
+        "reinterpret_cast",
+        "requires",
+        "short",
+        "signed",
+        "sizeof",
+        "static",
+        "static_assert",
+        "static_cast",
+        "struct",
+        "switch",
+        "template",
+        "this",
+        "thread_local",
+        "throw",
+        "try",
+        "typedef",
+        "typeid",
+        "typename",
+        "union",
+        "unsigned",
+        "using",
+        "virtual",
+        "void",
+        "volatile",
+        "wchar_t",
+        "xor",
+        "xor_eq",
+
+        // Python
+        "False",
+        "None",
+        "True",
+        "and",
+        "as",
+        "assert",
+        "async",
+        "await",
+        "def",
+        "del",
+        "elif",
+        "except",
+        "finally",
+        "from",
+        "global",
+        "import",
+        "in",
+        "is",
+        "lambda",
+        "nonlocal",
+        "not",
+        "or",
+        "pass",
+        "raise",
+        "try",
+        "with",
+        "yield",
+        "match",
+        "case"
+    };
+
+    if (name.empty() || std::isdigit((unsigned char)name[0]))
+        return false;
+    for (char c : name)
+        if (!std::isalnum((unsigned char)c) && c != '_')
+            return false;
+
+    return !kReserved.contains(name);
+}
+
 bool BlockRegistry::HasVariable(const std::string &name) const
 {
     for (const auto &v : Variables)
@@ -74,13 +213,14 @@ bool BlockRegistry::HasVariable(const std::string &name) const
 Error BlockRegistry::AddVariable(const std::string &name, Value type)
 {
     FAIL_COND_V_MSG(
-            name.empty(),
-            Error::BlockInvalidDefinition,
-            "Variable name cannot be empty");
+            !IsValidIdentifier(name),
+            Error::VariableInvalidName,
+            "Variable name '{}' is invalid",
+            name);
 
     FAIL_COND_V_MSG(
             HasVariable(name),
-            Error::BlockAlreadyExists,
+            Error::VariableAlreadyExists,
             "Variable '{}' already exists",
             name);
 

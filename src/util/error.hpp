@@ -35,6 +35,8 @@ enum class [[nodiscard]] Error
 
     VariableAlreadyExists,
     VariableNotFound,
+    VariableInvalidName,
+
     CustomBlockAlreadyExists,
     CustomBlockNotFound,
 
@@ -77,6 +79,8 @@ inline const char *to_string(Error err)
 
         case Error::VariableAlreadyExists: return "Variable already exists";
         case Error::VariableNotFound: return "Variable not found";
+        case Error::VariableInvalidName: return "Variable invalid name";
+
         case Error::CustomBlockAlreadyExists: return "Custom block already exists";
         case Error::CustomBlockNotFound: return "Block not found";
 

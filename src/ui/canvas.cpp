@@ -1401,10 +1401,8 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
             NewVarNameBuf[0] = '\0';
             VarCreateRequest = PendingVariableCreate{};
             ImGui::CloseCurrentPopup();
-        } else if (err == Error::BlockAlreadyExists) {
-            NewVarError = "A variable named '" + name + "' already exists";
         } else {
-            NewVarError = "Couldn't create variable '" + name + "'";
+            NewVarError = ErrorDetail::Message;
         }
     }
 
