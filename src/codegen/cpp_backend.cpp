@@ -86,6 +86,9 @@ void CppEmitter::EmitBuiltinRequirements(Builtin b)
         case Builtin::Max:
         case Builtin::Min:
         case Builtin::Round:
+        case Builtin::Abs:
+        case Builtin::Floor:
+        case Builtin::Ceil:
             Context.Includes.insert("<cmath>");
             Context.Namespaces.insert("std");
             return;
