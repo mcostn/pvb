@@ -100,6 +100,10 @@ if(BUILD_GUI)
     add_library(
         ui
         "src/ui/canvas.cpp"
+        "src/ui/canvas_debug.cpp"
+        "src/ui/canvas_comments.cpp"
+        "src/ui/canvas_context_menu.cpp"
+        "src/ui/canvas_variables.cpp"
         "src/ui/block.cpp"
         "src/ui/block_manager.cpp"
         "src/ui/palette.cpp"
