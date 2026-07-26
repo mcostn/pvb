@@ -100,7 +100,7 @@ Error RegisterCustomBlock(BlockRegistry &registry, const CustomBlockSpec &spec)
     const std::string hatOp  = CustomHatOpCode(spec.Name);
 
     if (FindDefinitionByOpCode(registry, callOp) || FindDefinitionByOpCode(registry, hatOp))
-        return Error::BlockAlreadyExists;
+        return Error::CustomBlockAlreadyExists;
 
     BlockDefinition call;
     call.OpCode = callOp;
@@ -167,7 +167,7 @@ Error UnregisterCustomBlock(BlockRegistry &registry, const std::string &name)
     auto it = std::find(registry.CustomBlocks.begin(), registry.CustomBlocks.end(), name);
 
     if (it == registry.CustomBlocks.end())
-        return Error::Failed;
+        return Error::CustomBlockNotFound;
 
     registry.Converter.StmtBuilders.erase(CustomCallOpCode(name));
 
@@ -185,7 +185,7 @@ Error RenameCustomBlock(BlockRegistry &registry, const std::string &oldName, con
         return Error::Failed;
 
     if (!IsCustomBlockRegistered(registry, oldName))
-        return Error::Failed;
+        return Error::CustomBlockNotFound;
 
     if (newName == oldName)
         return Error::Ok;
@@ -193,7 +193,7 @@ Error RenameCustomBlock(BlockRegistry &registry, const std::string &oldName, con
     if (IsCustomBlockRegistered(registry, newName) ||
         FindDefinitionByOpCode(registry, CustomCallOpCode(newName)) ||
         FindDefinitionByOpCode(registry, CustomHatOpCode(newName)))
-        return Error::BlockAlreadyExists;
+        return Error::CustomBlockAlreadyExists;
 
     const std::string oldCallOp = CustomCallOpCode(oldName);
     const std::string oldHatOp = CustomHatOpCode(oldName);

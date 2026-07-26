@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #define TRY(expr) \
     do { \
         auto _err = (expr); \
@@ -31,10 +33,20 @@ enum class [[nodiscard]] Error
     BlockInvalidDefinition,
     BlockAlreadyExists,
 
+    VariableAlreadyExists,
+    VariableNotFound,
+    CustomBlockAlreadyExists,
+    CustomBlockNotFound,
+
     BuildToolNotFound,
     BuildWriteFailed,
     BuildCompileFailed,
     BuildRunFailed,
+};
+
+struct ErrorDetail
+{
+    static inline thread_local std::string Message;
 };
 
 [[nodiscard]]
@@ -62,6 +74,11 @@ inline const char *to_string(Error err)
         case Error::BlockInvalidFmt: return "Invalid block format";
         case Error::BlockInvalidDefinition: return "Unknown block definition";
         case Error::BlockAlreadyExists: return "Block already exists";
+
+        case Error::VariableAlreadyExists: return "Variable already exists";
+        case Error::VariableNotFound: return "Variable not found";
+        case Error::CustomBlockAlreadyExists: return "Custom block already exists";
+        case Error::CustomBlockNotFound: return "Block not found";
 
         case Error::BuildToolNotFound: return "Required build tool not found";
         case Error::BuildWriteFailed: return "Failed to write build artifacts";

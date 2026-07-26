@@ -6,7 +6,7 @@ int main()
 {
     Error err = StartApp();
     if (err != Error::Ok) {
-        GlobalLogger.Error("Unexpected error {}", static_cast<int>(err));
+        GlobalLogger.Error("Unexpected error: {}", ErrorDetail::Message);
         return EXIT_FAILURE;
     }
 }

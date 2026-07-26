@@ -14,6 +14,7 @@
 #define FAIL_COND_V_MSG(cond, v, msg, ...) \
     do { \
         if ((cond)) { \
+            ErrorDetail::Message = std::format(msg, ##__VA_ARGS__); \
             GlobalLogger.Error((msg), ##__VA_ARGS__); \
             return (v); \
         } \

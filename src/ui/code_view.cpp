@@ -118,7 +118,8 @@ Error BuildProgramFromCanvas(
         std::unique_ptr<FunctionStmt> fn;
         Error err = BuildCustomFunction(root, registry, fn);
         FAIL_COND_V_MSG(
-                err != Error::Ok, err,
+                err != Error::Ok,
+                err,
                 "Failed to build custom block '{}'",
                 CustomBlockName(*root->Def));
 

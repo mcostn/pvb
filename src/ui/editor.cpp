@@ -329,7 +329,7 @@ void Editor::LoadFrom(const std::string& path)
         Language = settings.Language;
         Notify("Loaded project: " + ProjectPath);
     } else {
-        Notify("Load failed: " + std::string(to_string(err)), true);
+        Notify("Load failed: " + ErrorDetail::Message, true);
     }
 }
 
@@ -385,7 +385,7 @@ void Editor::GenerateCode()
         ShowCodeView = true;
         Notify("Code generated successfully");
     } else {
-        Notify("Code generation failed: " + std::string(to_string(err)), true);
+        Notify("Code generation failed: " + ErrorDetail::Message, true);
     }
 }
 
@@ -509,8 +509,8 @@ void Editor::CompileAndRunProject()
 {
     Error err = Code.Generate(CanvasView, Registry, Language);
     if (err != Error::Ok) {
-        SetOutput("Code Generation", "Code generation failed: " + std::string(to_string(err)));
-        Notify("Code generation failed: " + std::string(to_string(err)), true);
+        SetOutput("Code Generation", "Code generation failed: " + ErrorDetail::Message);
+        Notify("Code generation failed: " + ErrorDetail::Message, true);
         return;
     }
 
