@@ -612,20 +612,22 @@ void Canvas::DrawSnapPreview(ImDrawList *drawList, ImVec2 origin)
                     ImVec2 slotTopLeft = WorldToScreen(target.Pos + slot.Pos, origin);
                     ImVec2 slotBottomRight = WorldToScreen(target.Pos + slot.Pos + slot.Size, origin);
 
-                    ImVec2 outset(2.0f * Zoom, 2.0f * Zoom);
+                    const float effectiveZoom = Zoom * GetUiScale();
+                    ImVec2 outset(2.0f * effectiveZoom, 2.0f * effectiveZoom);
+
 
                     drawList->AddRect(
                             slotTopLeft - outset,
                             slotBottomRight + outset,
                             kSnapColor,
-                            3.0f * Zoom,
+                            3.0f * effectiveZoom,
                             0,
                             barThickness * 0.5f);
                     return;
                 }
             }
             break;
-        }
+                                 }
 
         default:
             break;
@@ -889,9 +891,11 @@ static void DrawStatementSnapPreview(
     float zoom,
     ImU32 color)
 {
-    const float notchInset = 14.0f * zoom;
-    const float notchWidth = 22.0f * zoom;
-    const float notchDepth = 6.0f * zoom;
+    const float effectiveZoom = zoom * GetUiScale();
+
+    const float notchInset = 14.0f * effectiveZoom;
+    const float notchWidth = 22.0f * effectiveZoom;
+    const float notchDepth = 6.0f * effectiveZoom;
 
     BlockOutline outline(pos + ImVec2(width, 0));
 
@@ -900,5 +904,5 @@ static void DrawStatementSnapPreview(
         .Tab(-notchWidth, notchDepth)
         .Right(-notchInset);
 
-    outline.StrokeOpen(drawList, color, 3.0f * zoom);
+    outline.StrokeOpen(drawList, color, 3.0f * effectiveZoom);
 }
