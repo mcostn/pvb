@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Multiplication Table
+description=Shows multiplication table of numbers from 1 to 10\\n
 language=cpp
 pvb_version=1.0
 block_count=13
@@ -71,7 +71,7 @@ y=355.400024
 next=6
 
 [block5.args]
-out=str: * 
+out=str: *
 
 [block6]
 id=6
@@ -96,7 +96,7 @@ y=427.300018
 next=11
 
 [block8.args]
-out=str: = 
+out=str: =
 
 [block9]
 id=11

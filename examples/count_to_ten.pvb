@@ -1,6 +1,6 @@
 [project]
 name=Count to Ten
-description=
+description=Prints numbers from 1 to 10 using a for loop\\n
 language=python
 pvb_version=1.0
 block_count=4
@@ -29,20 +29,20 @@ y=105.000000
 [block1.args]
 var=var:i
 start=int:1
-end=int:10
 
 [block2]
 id=3
 opcode=println
-x=200.000000
-y=200.000000
+x=198.000000
+y=200.700012
 body_owner=2
 body_slot=body
 
 [block3]
 id=4
 opcode=var_get_i
-x=300.000000
-y=205.000000
+x=295.000000
+y=206.700012
 arg_owner=3
 arg_slot=out
+

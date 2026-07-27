@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Hello World
+description=Prints Hello World to the screen
 language=python
 pvb_version=1.0
 block_count=2

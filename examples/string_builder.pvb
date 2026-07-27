@@ -1,6 +1,6 @@
 [project]
 name=String Builder
-description=\\n
+description=Concatenates 2 strings\\n\\n
 language=python
 pvb_version=1.0
 block_count=10
@@ -32,7 +32,7 @@ y=106.000000
 next=19
 
 [block1.args]
-out=str:First Name: 
+out=str:First Name:
 
 [block2]
 id=19
@@ -52,7 +52,7 @@ y=175.799988
 next=21
 
 [block3.args]
-out=str:Last Name: 
+out=str:Last Name:
 
 [block4]
 id=21
@@ -72,7 +72,7 @@ y=245.599976
 next=22
 
 [block5.args]
-out=str:Full Name: 
+out=str:Full Name:
 
 [block6]
 id=22

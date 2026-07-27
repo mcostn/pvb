@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Print Even
+description=Prints even numbers from 2 to n
 language=python
 pvb_version=1.0
 block_count=6

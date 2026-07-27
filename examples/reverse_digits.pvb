@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Reverse Digits
+description=Reverses the digits of n
 language=python
 pvb_version=1.0
 block_count=18

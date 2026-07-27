@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Loop
+description=Example of a for loop\\n
 language=python
 pvb_version=1.0
 block_count=4

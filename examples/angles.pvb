@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Angle
+description=Given a angle in degrees, print the aoutbout of sin, cos, tan and atan of that angle\\n
 language=python
 pvb_version=1.0
 block_count=26

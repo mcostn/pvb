@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Sum
+description=Sum from 1 to n using a for loop
 language=python
 pvb_version=1.0
 block_count=11

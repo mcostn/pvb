@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Is Prime
+description=Checks if a number is prime\\n
 language=python
 pvb_version=1.0
 block_count=19
@@ -153,17 +153,6 @@ x=253.000000
 y=485.699982
 
 [block16]
-id=21
-opcode=println
-x=271.000000
-y=581.599976
-body_owner=18
-body_slot=else
-
-[block16.args]
-out=str:is not prime
-
-[block17]
 id=20
 opcode=println
 x=271.000000
@@ -171,8 +160,19 @@ y=519.699951
 body_owner=18
 body_slot=then
 
-[block17.args]
+[block16.args]
 out=str:is prime
+
+[block17]
+id=21
+opcode=println
+x=271.000000
+y=581.599976
+body_owner=18
+body_slot=else
+
+[block17.args]
+out=str:is not prime
 
 [block18]
 id=19

@@ -1,6 +1,6 @@
 [project]
-name=
-description=
+name=Max
+description=Gets the maximum between 2 numbers
 language=python
 pvb_version=1.0
 block_count=7
