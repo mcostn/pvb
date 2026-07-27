@@ -77,7 +77,7 @@ BuildResult ProjectRunner::CompileCpp(
     switch (compiler.Compiler) {
         case CompilerKind::Msvc:
             command << "cd /d " << QuotePath(result.BuildDirectory)
-                << " && " << compiler.Command
+                << " && " << QuotePath(compiler.Command)
                 << " /nologo /EHsc /Fe:" << QuotePath(fs::path(result.ExecutablePath).filename().string())
                 << " " << QuotePath(sourcePath.filename().string());
             break;

@@ -7,6 +7,8 @@
 
 #ifdef _WIN32
     #include <windows.h>
+    #include <cstdlib>
+    #include <filesystem>
 #endif
 
 bool Toolchain::IsPython3(const std::string &versionOutput)
@@ -54,7 +56,7 @@ std::optional<ToolInfo> Toolchain::TryCppCompiler(
     CompilerKind kind)
 {
     std::string versionFlag = (kind == CompilerKind::Msvc) ? "" : " --version";
-    CommandResult result = RunCommand(command + versionFlag + " 2>&1");
+    CommandResult result = RunCommand(QuotePath(command) + versionFlag + " 2>&1");
     if (result.ExitCode != 0 && kind != CompilerKind::Msvc)
         return std::nullopt;
 
@@ -101,6 +103,130 @@ std::vector<std::pair<std::string, CompilerKind>> Toolchain::CppCandidates()
 #endif
 }
 
+#ifdef _WIN32
+
+namespace {
+
+std::string GetEnvVar(const char *name)
+{
+    const char *value = std::getenv(name);
+    return value ? std::string(value) : std::string();
+}
+
+std::vector<std::filesystem::path> WellKnownCompilerBinDirs()
+{
+    namespace fs = std::filesystem;
+
+    std::vector<fs::path> dirs;
+    auto addIfExists = [&](const fs::path &dir) {
+        std::error_code ec;
+        if (fs::is_directory(dir, ec))
+            dirs.push_back(dir);
+    };
+
+    const std::string programFiles = GetEnvVar("ProgramFiles");
+    const std::string programFilesX86 = GetEnvVar("ProgramFiles(x86)");
+
+    // Code::Blocks' bundled MinGW
+    if (!programFiles.empty())
+        addIfExists(fs::path(programFiles) / "CodeBlocks" / "MinGW" / "bin");
+    if (!programFilesX86.empty())
+        addIfExists(fs::path(programFilesX86) / "CodeBlocks" / "MinGW" / "bin");
+
+    // Dev-C++ (bundles TDM-GCC)
+    if (!programFilesX86.empty())
+        addIfExists(fs::path(programFilesX86) / "Dev-Cpp" / "MinGW64" / "bin");
+    if (!programFiles.empty())
+        addIfExists(fs::path(programFiles) / "Dev-Cpp" / "MinGW64" / "bin");
+
+    // Standalone MinGW-w64 installers
+    addIfExists(fs::path("C:\\mingw64\\bin"));
+    addIfExists(fs::path("C:\\MinGW\\bin"));
+
+    for (const std::string &root : { programFiles, programFilesX86 }) {
+        if (root.empty())
+            continue;
+
+        std::error_code ec;
+        fs::path mingwRoot = fs::path(root) / "mingw-w64";
+        if (!fs::is_directory(mingwRoot, ec))
+            continue;
+
+        for (const auto &entry : fs::directory_iterator(mingwRoot, ec)) {
+            if (!entry.is_directory())
+                continue;
+
+            addIfExists(entry.path() / "mingw64" / "bin");
+            addIfExists(entry.path() / "mingw32" / "bin");
+        }
+    }
+
+    // MSYS2
+    addIfExists(fs::path("C:\\msys64\\mingw64\\bin"));
+    addIfExists(fs::path("C:\\msys64\\ucrt64\\bin"));
+    addIfExists(fs::path("C:\\msys64\\clang64\\bin"));
+
+    // LLVM's own installer (distinct from the clang bundled with Visual Studio)
+    if (!programFiles.empty())
+        addIfExists(fs::path(programFiles) / "LLVM" / "bin");
+
+    return dirs;
+}
+
+std::optional<std::string> FindMsvcClPath()
+{
+    namespace fs = std::filesystem;
+
+    const std::string programFilesX86 = GetEnvVar("ProgramFiles(x86)");
+    if (programFilesX86.empty())
+        return std::nullopt;
+
+    fs::path vswhere = fs::path(programFilesX86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe";
+
+    std::error_code ec;
+    if (!fs::exists(vswhere, ec))
+        return std::nullopt;
+
+    CommandResult result = RunCommand(
+        QuotePath(vswhere.string())
+        + " -latest -products * "
+          "-requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 "
+          "-property installationPath 2>&1");
+
+    if (result.ExitCode != 0)
+        return std::nullopt;
+
+    std::string installPath = result.Output;
+    while (!installPath.empty() && (installPath.back() == '\n' || installPath.back() == '\r' || installPath.back() == ' '))
+        installPath.pop_back();
+
+    if (installPath.empty())
+        return std::nullopt;
+
+    fs::path toolsRoot = fs::path(installPath) / "VC" / "Tools" / "MSVC";
+    if (!fs::is_directory(toolsRoot, ec))
+        return std::nullopt;
+
+    std::string bestVersion;
+    for (const auto &entry : fs::directory_iterator(toolsRoot, ec)) {
+        if (entry.is_directory() && entry.path().filename().string() > bestVersion)
+            bestVersion = entry.path().filename().string();
+    }
+
+    if (bestVersion.empty())
+        return std::nullopt;
+
+    fs::path clPath = toolsRoot / bestVersion / "bin" / "Hostx64" / "x64" / "cl.exe";
+    if (!fs::exists(clPath, ec))
+        return std::nullopt;
+
+    return clPath.string();
+}
+
+} // namespace
+
+#endif // _WIN32
+
 std::optional<ToolInfo> Toolchain::FindPython()
 {
     for (const std::string &candidate : PythonCandidates()) {
@@ -117,6 +243,30 @@ std::optional<ToolInfo> Toolchain::FindCppCompiler()
         if (auto tool = TryCppCompiler(command, kind))
             return tool;
     }
+
+#ifdef _WIN32
+    static const std::pair<const char *, CompilerKind> kFallbackExeNames[] = {
+        { "g++.exe", CompilerKind::Gcc },
+        { "clang++.exe", CompilerKind::Clang },
+    };
+
+    for (const std::filesystem::path &dir : WellKnownCompilerBinDirs()) {
+        for (const auto &[exeName, kind] : kFallbackExeNames) {
+            std::error_code ec;
+            std::filesystem::path exePath = dir / exeName;
+            if (!std::filesystem::exists(exePath, ec))
+                continue;
+
+            if (auto tool = TryCppCompiler(exePath.string(), kind))
+                return tool;
+        }
+    }
+
+    if (auto clPath = FindMsvcClPath()) {
+        if (auto tool = TryCppCompiler(*clPath, CompilerKind::Msvc))
+            return tool;
+    }
+#endif
 
     return std::nullopt;
 }
