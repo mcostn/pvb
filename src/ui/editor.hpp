@@ -68,6 +68,8 @@ public:
     bool ShowCodeView = false;
     void GenerateCode();
 
+    bool QuitRequested = false;
+
     bool ShowOutputPanel = false;
     float OutputPanelHeight = 180.0f;
 

@@ -122,7 +122,7 @@ void Editor::DrawMenuBar()
         ImGui::Separator();
 
         if (ImGui::MenuItem("Quit")) {
-            // TODO: close application
+            QuitRequested = true;
         }
 
         ImGui::EndMenu();

@@ -85,6 +85,9 @@ Error StartApp()
     while (window.BeginFrame()) {
         editor.Draw();
         window.EndFrame();
+
+        if (editor.QuitRequested)
+            glfwSetWindowShouldClose(window.Handle, GLFW_TRUE);
     }
 
     window.Shutdown();
