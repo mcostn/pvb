@@ -122,7 +122,7 @@ void Editor::DrawMenuBar()
         ImGui::Separator();
 
         if (ImGui::MenuItem("Quit")) {
-            QuitRequested = true;
+            // TODO: close application
         }
 
         ImGui::EndMenu();
@@ -385,7 +385,7 @@ void Editor::GenerateCode()
         ShowCodeView = true;
         Notify("Code generated successfully");
     } else {
-        Notify("Code generation failed: " + ErrorDetail::Message, true);
+        Notify("Code generation failed: " + std::string(to_string(err)), true);
     }
 }
 
@@ -410,7 +410,16 @@ void Editor::ShowBuildResult(const std::string &title, const BuildResult &result
     if (text.empty()) text = BuildResultSummary(result);
     else if (result.Status != Error::Ok) text = BuildResultSummary(result) + "\n\n" + text;
 
-    SetOutput(title, text);
+    std::ostringstream withCommands;
+    if (!result.CompileCommand.empty())
+        withCommands << "$ " << result.CompileCommand << "\n";
+    if (!result.RunCommand.empty())
+        withCommands << "$ " << result.RunCommand << "\n";
+    if (!result.CompileCommand.empty() || !result.RunCommand.empty())
+        withCommands << "\n";
+    withCommands << text;
+
+    SetOutput(title, withCommands.str());
 
     if (result.Status == Error::Ok) Notify(title + " succeeded");
     else Notify(title + " failed: " + std::string(to_string(result.Status)), true);
@@ -509,8 +518,8 @@ void Editor::CompileAndRunProject()
 {
     Error err = Code.Generate(CanvasView, Registry, Language);
     if (err != Error::Ok) {
-        SetOutput("Code Generation", "Code generation failed: " + ErrorDetail::Message);
-        Notify("Code generation failed: " + ErrorDetail::Message, true);
+        SetOutput("Code Generation", "Code generation failed: " + std::string(to_string(err)));
+        Notify("Code generation failed: " + std::string(to_string(err)), true);
         return;
     }
 

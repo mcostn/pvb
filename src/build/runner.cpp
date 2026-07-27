@@ -91,6 +91,7 @@ BuildResult ProjectRunner::CompileCpp(
     }
 
     CommandResult compile = RunCommand(command.str() + " 2>&1");
+    result.CompileCommand = command.str();
     result.ExitCode = compile.ExitCode;
     result.Output = compile.Output;
 
@@ -135,6 +136,36 @@ BuildResult ProjectRunner::LaunchProgramInTerminal(
     return result;
 }
 
+BuildResult ProjectRunner::LaunchCompiledProgram(BuildResult compile)
+{
+    std::ostringstream command;
+
+#ifdef _WIN32
+    if (compile.Tool && compile.Tool->Compiler != CompilerKind::Msvc) {
+        fs::path compilerDir = fs::path(compile.Tool->Command).parent_path();
+        if (!compilerDir.empty())
+            command << "set \"PATH=" << compilerDir.string() << ";%PATH%\" && ";
+    }
+
+    command << QuotePath(fs::path(compile.ExecutablePath).filename().string());
+#else
+    command << QuotePath(compile.ExecutablePath);
+#endif
+
+    const std::string runCommand = command.str();
+
+    BuildResult launched = LaunchProgramInTerminal(
+        runCommand,
+        fs::path(compile.ExecutablePath).parent_path().string(),
+        compile);
+
+    launched.Tool = compile.Tool;
+    launched.ExecutablePath = compile.ExecutablePath;
+    launched.BuildDirectory = compile.BuildDirectory;
+    launched.RunCommand = runCommand;
+    return launched;
+}
+
 BuildResult ProjectRunner::RunInTerminal(
     const std::string &source,
     CodeLanguage language,
@@ -169,7 +200,11 @@ BuildResult ProjectRunner::RunInTerminal(
 
         result.Tool = *tool;
         std::ostringstream command;
-        command << QuotePath(tool->Command) << " " << QuotePath(sourcePath.string());
+        command << QuotePath(tool->Command);
+        if (!tool->ExtraArgs.empty())
+            command << " " << tool->ExtraArgs;
+        command << " " << QuotePath(sourcePath.string());
+        result.RunCommand = command.str();
         return LaunchProgramInTerminal(command.str(), result.BuildDirectory, std::move(result));
     }
 
@@ -177,22 +212,7 @@ BuildResult ProjectRunner::RunInTerminal(
     if (compile.Status != Error::Ok)
         return compile;
 
-    std::ostringstream command;
-#ifdef _WIN32
-    command << QuotePath(fs::path(compile.ExecutablePath).filename().string());
-#else
-    command << QuotePath(compile.ExecutablePath);
-#endif
-
-    BuildResult launched = LaunchProgramInTerminal(
-        command.str(),
-        fs::path(compile.ExecutablePath).parent_path().string(),
-        compile);
-
-    launched.Tool = compile.Tool;
-    launched.ExecutablePath = compile.ExecutablePath;
-    launched.BuildDirectory = compile.BuildDirectory;
-    return launched;
+    return LaunchCompiledProgram(std::move(compile));
 }
 
 BuildResult ProjectRunner::CompileAndRunInTerminal(
@@ -215,20 +235,5 @@ BuildResult ProjectRunner::CompileAndRunInTerminal(
     if (compile.Status != Error::Ok)
         return compile;
 
-    std::ostringstream command;
-#ifdef _WIN32
-    command << QuotePath(fs::path(compile.ExecutablePath).filename().string());
-#else
-    command << QuotePath(compile.ExecutablePath);
-#endif
-
-    BuildResult launched = LaunchProgramInTerminal(
-        command.str(),
-        fs::path(compile.ExecutablePath).parent_path().string(),
-        compile);
-
-    launched.Tool = compile.Tool;
-    launched.ExecutablePath = compile.ExecutablePath;
-    launched.BuildDirectory = compile.BuildDirectory;
-    return launched;
+    return LaunchCompiledProgram(std::move(compile));
 }

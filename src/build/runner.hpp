@@ -14,6 +14,8 @@ struct BuildResult
     std::optional<ToolInfo> Tool;
     std::string ExecutablePath;
     std::string BuildDirectory;
+    std::string CompileCommand;
+    std::string RunCommand;
 };
 
 class ProjectRunner
@@ -39,6 +41,7 @@ private:
         const std::string &command,
         const std::string &workingDir,
         BuildResult prior = {});
+    static BuildResult LaunchCompiledProgram(BuildResult compile);
     [[nodiscard]] static std::string SanitizeProjectName(const std::string &name);
     [[nodiscard]] static std::string CreateBuildDirectory();
 };
