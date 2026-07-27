@@ -50,7 +50,7 @@ enum class [[nodiscard]] Error
 
 struct ErrorDetail
 {
-    static inline thread_local std::string Message;
+    static inline std::string Message;
 };
 
 [[nodiscard]]
