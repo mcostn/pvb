@@ -152,7 +152,7 @@ Error ParseLiteral(Value type, std::string_view text, LiteralValue &out)
         return s;
     };
 
-    if (type & VAL_ANY) {
+    if (type == VAL_ANY) {
         if (text == "true") {
             out = true;
         } else if (text == "false") {
@@ -181,7 +181,7 @@ Error ParseLiteral(Value type, std::string_view text, LiteralValue &out)
         return Error::Ok;
     }
 
-    if (type & VAL_INT) {
+    if (type == VAL_INT) {
         try {
             out = std::stoi(std::string(text));
         } catch (...) {
@@ -207,7 +207,7 @@ Error ParseLiteral(Value type, std::string_view text, LiteralValue &out)
         return Error::Ok;
     }
 
-    if (type & VAL_BOOL) {
+    if (type == VAL_BOOL) {
         if (text == "true") {
             out = true;
         } else if (text == "false") {
@@ -223,7 +223,7 @@ Error ParseLiteral(Value type, std::string_view text, LiteralValue &out)
         return Error::Ok;
     }
 
-    if (type & VAL_STRING) {
+    if (type == VAL_STRING) {
         out = std::string(stripQuotes(text));
         return Error::Ok;
     }
