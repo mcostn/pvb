@@ -228,6 +228,7 @@ Error PythonEmitter::Visit(const IfStmt &stmt)
 
     if (stmt.ElseBranch) {
         Out() << "\n";
+        Indent();
         Out() << "else";
         TRY(Emit(stmt.ElseBranch));
     }
