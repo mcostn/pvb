@@ -120,6 +120,7 @@ BuildResult ProjectRunner::LaunchProgramInTerminal(
     BuildResult prior)
 {
     BuildResult result = std::move(prior);
+    result.RunCommand = command;
 
     if (!::LaunchInTerminal(command, workingDir)) {
         result.Status = Error::BuildRunFailed;
