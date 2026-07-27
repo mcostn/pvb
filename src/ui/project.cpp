@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "ui/project.hpp"
+#include "ui/custom_block.hpp"
 #include "block/registry.hpp"
 #include "util/ini.hpp"
 
@@ -54,6 +55,8 @@ static Error ValidateGraph(
 
 static Error VariableTypeToString(Value type, std::string &out);
 static Error VariableTypeFromString(const std::string &str, Value &out);
+
+static void PurgeCustomBlocks(BlockRegistry &registry);
 
 static Error CodeLanguageToString(CodeLanguage lang, std::string &out);
 static Error CodeLanguageFromString(const std::string &str, CodeLanguage &out);
@@ -116,6 +119,11 @@ Error SaveProject(
             "variable_count",
             std::to_string(registry.Variables.size()));
 
+    ini.SetValue(
+            "project",
+            "custom_block_count",
+            std::to_string(registry.CustomBlocks.size()));
+
 
     std::ostringstream roots;
     for (size_t i = 0; i < canvas.Manager.Roots.size(); ++i) {
@@ -141,6 +149,40 @@ Error SaveProject(
         std::string typeStr;
         TRY(VariableTypeToString(v.Type, typeStr));
         ini.SetValue(section, "type", typeStr);
+    }
+
+
+    // Custom block definitions
+    for (size_t i = 0; i < registry.CustomBlocks.size(); ++i) {
+        const std::string &name = registry.CustomBlocks[i];
+        std::string section = "customblock" + std::to_string(i);
+
+        const BlockDefinition *callDef = FindDefinitionByOpCode(registry, CustomCallOpCode(name));
+
+        FAIL_COND_V_MSG(
+                !callDef,
+                Error::ProjectInvalidData,
+                "Custom block '{}' is missing its definition",
+                name);
+
+        ini.SetValue(section, "name", IniFile::Escape(name));
+        ini.SetValue(section, "description", IniFile::Escape(callDef->Description));
+
+        std::vector<const BlockSchemaItem *> params;
+        for (const BlockSchemaItem &item : callDef->Schema) {
+            if (item.Type == BlockSchemaType::Input)
+                params.push_back(&item);
+        }
+
+        ini.SetValue(section, "param_count", std::to_string(params.size()));
+
+        for (size_t j = 0; j < params.size(); ++j) {
+            std::string paramTypeStr;
+            TRY(VariableTypeToString(params[j]->ValueType, paramTypeStr));
+
+            ini.SetValue(section, "param" + std::to_string(j) + "_name", IniFile::Escape(params[j]->Name));
+            ini.SetValue(section, "param" + std::to_string(j) + "_type", paramTypeStr);
+        }
     }
 
 
@@ -333,6 +375,7 @@ Error LoadProject(
     u32 blockCount = 0;
     u32 commentCount = 0;
     u32 variableCount = 0;
+    u32 customBlockCount = 0;
 
     TRY(GetU32(
         ini,
@@ -351,6 +394,12 @@ Error LoadProject(
         "project",
         "variable_count",
         variableCount));
+
+    DISCARD(GetU32(
+        ini,
+        "project",
+        "custom_block_count",
+        customBlockCount));
 
     std::string rootsRaw;
     TRY(GetString(
@@ -400,6 +449,54 @@ Error LoadProject(
                     "Failed to recreate variable '{}'",
                     name2);
         }
+    }
+
+    // Remove any custom blocks left over from a previously loaded project
+    PurgeCustomBlocks(registry);
+
+    // Custom block definitions
+    for (u32 i = 0; i < customBlockCount; ++i) {
+        std::string section = "customblock" + std::to_string(i);
+
+        FAIL_COND_V_MSG(
+                !ini.HasSection(section),
+                Error::ProjectMissingSection,
+                "Missing [{}]",
+                section);
+
+        std::string rawName;
+        TRY(GetString(ini, section, "name", rawName));
+
+        std::string rawDescription;
+        DISCARD(GetString(ini, section, "description", rawDescription));
+
+        u32 paramCount = 0;
+        DISCARD(GetU32(ini, section, "param_count", paramCount));
+
+        CustomBlockSpec spec;
+        spec.Name = IniFile::Unescape(rawName);
+        spec.Description = IniFile::Unescape(rawDescription);
+
+        for (u32 j = 0; j < paramCount; ++j) {
+            std::string prefix = "param" + std::to_string(j);
+
+            std::string rawParamName, paramTypeStr;
+            TRY(GetString(ini, section, prefix + "_name", rawParamName));
+            TRY(GetString(ini, section, prefix + "_type", paramTypeStr));
+
+            Value paramType;
+            TRY(VariableTypeFromString(paramTypeStr, paramType));
+
+            spec.Params.push_back({ IniFile::Unescape(rawParamName), paramType });
+        }
+
+        Error err = RegisterCustomBlock(registry, spec);
+
+        FAIL_COND_V_MSG(
+                err != Error::Ok,
+                err,
+                "Failed to recreate custom block '{}'",
+                spec.Name);
     }
 
     // Blocks
@@ -761,6 +858,23 @@ static const BlockSchemaItem *FindSchemaItem(const BlockDefinition &def, const s
     }
 
     return nullptr;
+}
+
+static void PurgeCustomBlocks(BlockRegistry &registry)
+{
+    std::vector<std::string> names = registry.CustomBlocks;
+
+    for (const std::string &name : names)
+        DISCARD(UnregisterCustomBlock(registry, name));
+
+    auto &defs = registry.Definitions;
+
+    for (auto it = defs.begin(); it != defs.end(); ) {
+        if (IsCustomCall(*it) || IsCustomHat(*it) || IsCustomParam(*it))
+            it = defs.erase(it);
+        else
+            ++it;
+    }
 }
 
 static Error VariableTypeToString(Value type, std::string &out)
