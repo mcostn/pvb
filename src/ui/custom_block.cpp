@@ -186,6 +186,19 @@ Error UnregisterCustomBlock(BlockRegistry &registry, const std::string &name)
     for (const BlockDefinition *paramDef : CustomBlockParamDefs(registry, name))
         registry.Converter.ExprBuilders.erase(paramDef->OpCode);
 
+    const std::string callOp = CustomCallOpCode(name);
+    const std::string hatOp  = CustomHatOpCode(name);
+    const std::string paramPrefix = CustomParamOpCode(name, "");
+
+    auto &defs = registry.Definitions;
+    for (auto dit = defs.begin(); dit != defs.end(); ) {
+        if (dit->OpCode == callOp || dit->OpCode == hatOp ||
+                dit->OpCode.rfind(paramPrefix, 0) == 0)
+            dit = defs.erase(dit);
+        else
+            ++dit;
+    }
+
     registry.CustomBlocks.erase(it);
 
     return Error::Ok;

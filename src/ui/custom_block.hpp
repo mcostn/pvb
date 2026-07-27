@@ -25,6 +25,7 @@ std::string CustomHatOpCode(const std::string &name);
 
 bool IsCustomCall(const BlockDefinition &def);
 bool IsCustomHat(const BlockDefinition &def);
+bool IsCustomParam(const BlockDefinition &def);
 
 std::string CustomBlockName(const BlockDefinition &def);
 
