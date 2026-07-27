@@ -12,6 +12,38 @@
     #include <unistd.h>
 #endif
 
+#ifdef _WIN32
+static bool Win32SpawnDetached(std::string commandLine, bool newConsole)
+{
+    STARTUPINFOA si{};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi{};
+
+    DWORD flags = CREATE_NEW_PROCESS_GROUP;
+    if (newConsole)
+        flags |= CREATE_NEW_CONSOLE;
+
+    BOOL ok = CreateProcessA(
+        nullptr,
+        commandLine.data(),
+        nullptr,
+        nullptr,
+        FALSE,
+        flags,
+        nullptr,
+        nullptr,
+        &si,
+        &pi);
+
+    if (!ok)
+        return false;
+
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
+}
+#endif
+
 CommandResult RunCommand(const std::string &command)
 {
     CommandResult result;
@@ -68,8 +100,13 @@ static std::string TerminalScript(
     const std::string &workingDir)
 {
     std::ostringstream script;
-    if (!workingDir.empty())
+    if (!workingDir.empty()) {
+#ifdef _WIN32
+        script << "cd /d " << QuotePath(workingDir) << " && ";
+#else
         script << "cd " << QuotePath(workingDir) << " && ";
+#endif
+    }
     script << command;
 #ifdef _WIN32
     script << " & echo. & echo Press any key to close... & pause >nul";
@@ -82,9 +119,7 @@ static std::string TerminalScript(
 bool LaunchDetached(const std::string &command)
 {
 #ifdef _WIN32
-    std::string wrapped = "cmd /c start \"\" " + command;
-    CommandResult result = RunCommand(wrapped);
-    return result.ExitCode == 0;
+    return Win32SpawnDetached(command, /*newConsole=*/false);
 #else
     pid_t pid = fork();
     if (pid < 0)
@@ -105,12 +140,8 @@ bool LaunchInTerminal(const std::string &command, const std::string &workingDir)
     const std::string script = TerminalScript(command, workingDir);
 
 #ifdef _WIN32
-    std::ostringstream launch;
-    launch << "cmd /k \"";
-    if (!workingDir.empty())
-        launch << "cd /d " << QuotePath(workingDir) << " && ";
-    launch << command << "\"";
-    return LaunchDetached(launch.str());
+    std::string launch = "cmd.exe /c \"" + script + "\"";
+    return Win32SpawnDetached(std::move(launch), /*newConsole=*/true);
 
 #elif defined(__APPLE__)
     std::ostringstream launch;
