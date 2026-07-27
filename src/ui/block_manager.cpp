@@ -70,6 +70,12 @@ VisualArg BlockManager::CloneArg(const VisualArg &arg)
 
             for (const auto &[key, a] : value->Args)
                 clone->Args.emplace(key, CloneArg(a));
+
+            for (auto &[key, a] : clone->Args) {
+                if (auto *held = std::get_if<std::unique_ptr<VisualBlock>>(&a))
+                    AdoptArgChild(clone.get(), key, held->get());
+            }
+
             for (const auto &[slot, bodyHead] : value->BodyRoots) {
                 VisualBlock *clonedHead = bodyHead ? CloneChain(bodyHead) : nullptr;
                 clone->BodyRoots[slot] = clonedHead;
