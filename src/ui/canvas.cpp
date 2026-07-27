@@ -129,16 +129,16 @@ void Canvas::Draw(const char *strId, ImVec2 size)
     ImGui::PopID();
 
     if (Registry) {
-        DrawCreateVariablePopup(*Registry);
-        DrawCreateCustomBlockPopup(*Registry);
-        DrawRenameVariablePopup(*Registry);
-        DrawRenameCustomBlockPopup(*Registry);
+        DrawCreateVariablePopup();
+        DrawCreateCustomBlockPopup();
+        DrawRenameVariablePopup();
+        DrawRenameCustomBlockPopup();
     }
 }
 
 void Canvas::DrawGrid(ImDrawList *drawList, ImVec2 origin, ImVec2 size)
 {
-    drawList->AddRectFilled(origin, origin + size, IM_COL32(30, 30, 34, 255));
+    drawList->AddRectFilled(origin, origin + size, kCanvasBgColor);
 
     const float baseStep = 24.0f;
     float gridStep = baseStep * Zoom;

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "ui/imgui.hpp"
+#include "ui/const.hpp"
 #include "block/definition.hpp"
 #include "block/instance.hpp"
 #include "block/registry.hpp"
@@ -21,14 +22,14 @@ struct LayoutMetrics
 {
     ImVec2 Padding = ImVec2(0.0f, 0.0f);
     float FontSize = 0.0f;
-    float LineHeightFactor = 1.3f;
-    float RowGap = 3.0f;
-    float BodyMinHeight = 28.0f;
-    float BodyIndent = 18.0f;
-    float BodyBottomBarHeight = 14.0f;
+    float LineHeightFactor = kLineHeightFactor;
+    float RowGap = kRowGap;
+    float BodyMinHeight = kBodyMinHeight;
+    float BodyIndent = kBodyIndent;
+    float BodyBottomBarHeight = kBodyBottomBarHeight;
     float BodyNotchWidth = 14.0f;
     float NotchHeight = 8.0f;
-    float MinBlockWidth = 60.0f;
+    float MinBlockWidth = kMinBlockWidth;
     float VarSlotWidth = 70.0f;
     float TokenGap = 4.0f;
     float MinInputWidth = 40.0f;

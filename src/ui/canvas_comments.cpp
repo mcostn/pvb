@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include "ui/canvas.hpp"
+#include "ui/const.hpp"
 
 void Canvas::DrawComments(ImVec2 origin)
 {
@@ -14,22 +15,22 @@ void Canvas::DrawComments(ImVec2 origin)
         ImGui::SetNextWindowSize(c.Size * Zoom, ImGuiCond_Always);
 
         ImGui::PushStyleColor(ImGuiCol_WindowBg,
-                IM_COL32(255,243,140,255));
+                kCommentBgColor);
         ImGui::PushStyleColor(ImGuiCol_TitleBg,
-                IM_COL32(255,220,80,255));
+                kCommentTitleBgColor);
         ImGui::PushStyleColor(ImGuiCol_TitleBgActive,
-                IM_COL32(255,220,80,255));
+                kCommentTitleBgColor);
         ImGui::PushStyleColor(ImGuiCol_Border,
-                IM_COL32(180,170,70,255));
+                kCommentBorderColor);
         ImGui::PushStyleColor(ImGuiCol_Text,
-                IM_COL32(60,50,10,255));
+                kCommentTextColor);
 
         ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                IM_COL32(255,243,140,255));
+                kCommentBgColor);
         ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
-                IM_COL32(255,243,140,255));
+                kCommentBgColor);
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
-                IM_COL32(255,243,140,255));
+                kCommentBgColor);
 
         std::string name = "##comment" + std::to_string(c.Id);
 

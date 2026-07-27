@@ -2,6 +2,7 @@
 #include <functional>
 
 #include "ui/canvas.hpp"
+#include "ui/const.hpp"
 #include "ui/custom_block.hpp"
 #include "block/registry.hpp"
 #include "util/macro.hpp"
@@ -136,7 +137,7 @@ void Canvas::RequestVariableCreation(VisualBlock *targetBlock, const std::string
     NewVarError.clear();
 }
 
-void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
+void Canvas::DrawCreateVariablePopup()
 {
     static const char *kAllNames[]  = { "Int", "Float", "Bool", "String" };
     static const Value  kAllValues[] = { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_STRING };
@@ -172,9 +173,7 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
     ImGui::TextUnformatted("New Variable");
     ImGui::Separator();
 
-    constexpr float PopupFieldWidth = 220.0f;
-
-    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::SetNextItemWidth(kPopupFieldWidth);
     if (ImGui::IsWindowAppearing())
         ImGui::SetKeyboardFocusHere(0);
     bool enterPressed = ImGui::InputTextWithHint(
@@ -184,24 +183,24 @@ void Canvas::DrawCreateVariablePopup(BlockRegistry &registry)
             sizeof(NewVarNameBuf),
             ImGuiInputTextFlags_EnterReturnsTrue);
 
-    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::SetNextItemWidth(kPopupFieldWidth);
     ImGui::Combo("##new_var_type", &NewVarTypeIndex, allowedNames, allowedCount);
 
     if (!NewVarError.empty()) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + kPopupFieldWidth);
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", NewVarError.c_str());
         ImGui::PopTextWrapPos();
     }
 
-    bool createClicked = ImGui::Button("Create", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool createClicked = ImGui::Button("Create", ImVec2(PopupButtonWidth(kPopupFieldWidth), 0.0f));
     ImGui::SameLine();
-    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupButtonWidth(kPopupFieldWidth), 0.0f));
 
     if (createClicked || enterPressed) {
         std::string name(NewVarNameBuf);
         Value type = allowedValues[NewVarTypeIndex];
 
-        Error err = registry.AddVariable(name, type);
+        Error err = Registry->AddVariable(name, type);
 
         if (err == Error::Ok) {
             if (VarCreateRequest.TargetBlock && !VarCreateRequest.TargetKey.empty())
@@ -236,7 +235,7 @@ void Canvas::RequestVariableRename(const std::string &name)
     RenameVarError.clear();
 }
 
-void Canvas::DrawRenameVariablePopup(BlockRegistry &registry)
+void Canvas::DrawRenameVariablePopup()
 {
     if (VarRenameRequest.Requested) {
         ImGui::OpenPopup("##canvas_rename_variable_popup");
@@ -246,12 +245,10 @@ void Canvas::DrawRenameVariablePopup(BlockRegistry &registry)
     if (!ImGui::BeginPopup("##canvas_rename_variable_popup"))
         return;
 
-    constexpr float PopupFieldWidth = 220.0f;
-
     ImGui::TextUnformatted("Rename Variable");
     ImGui::Separator();
 
-    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::SetNextItemWidth(kPopupFieldWidth);
     if (ImGui::IsWindowAppearing()) {
         ImGui::SetKeyboardFocusHere(0);
     }
@@ -263,14 +260,14 @@ void Canvas::DrawRenameVariablePopup(BlockRegistry &registry)
             ImGuiInputTextFlags_EnterReturnsTrue);
 
     if (!RenameVarError.empty()) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + kPopupFieldWidth);
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", RenameVarError.c_str());
         ImGui::PopTextWrapPos();
     }
 
-    bool renameClicked = ImGui::Button("Rename", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool renameClicked = ImGui::Button("Rename", ImVec2(PopupButtonWidth(kPopupFieldWidth), 0.0f));
     ImGui::SameLine();
-    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupButtonWidth(kPopupFieldWidth), 0.0f));
 
     if (renameClicked || enterPressed) {
         std::string newName(RenameVarNameBuf);
@@ -343,7 +340,7 @@ void Canvas::RequestCustomBlockCreation()
     NewCustomError.clear();
 }
 
-void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
+void Canvas::DrawCreateCustomBlockPopup()
 {
     static const char *kTypeNames[]  = { "Int", "Float", "Bool", "String" };
     static const Value  kTypeValues[] = { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_STRING };
@@ -356,12 +353,10 @@ void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
     if (!ImGui::BeginPopup("##canvas_create_custom_block_popup"))
         return;
 
-    constexpr float PopupFieldWidth = 280.0f;
-
     ImGui::TextUnformatted("Create a Block");
     ImGui::Separator();
 
-    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::SetNextItemWidth(kPopupFieldWidthWide);
     if (ImGui::IsWindowAppearing())
         ImGui::SetKeyboardFocusHere(0);
     ImGui::InputTextWithHint(
@@ -370,12 +365,12 @@ void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
             NewCustomNameBuf,
             sizeof(NewCustomNameBuf));
 
-    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::SetNextItemWidth(kPopupFieldWidthWide);
     ImGui::InputTextMultiline(
             "##custom_block_desc",
             NewCustomDescBuf,
             sizeof(NewCustomDescBuf),
-            ImVec2(PopupFieldWidth, 50.0f));
+            ImVec2(kPopupFieldWidthWide, 50.0f));
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Optional description");
 
@@ -388,11 +383,11 @@ void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
 
         CustomParamEdit &p = NewCustomParams[i];
 
-        ImGui::SetNextItemWidth(PopupFieldWidth * 0.5f - 18.0f);
+        ImGui::SetNextItemWidth(kPopupFieldWidthWide * 0.5f - 18.0f);
         ImGui::InputTextWithHint("##param_name", "arg name", p.NameBuf, sizeof(p.NameBuf));
 
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(PopupFieldWidth * 0.35f - 18.0f);
+        ImGui::SetNextItemWidth(kPopupFieldWidthWide * 0.35f - 18.0f);
         ImGui::Combo("##param_type", &p.TypeIndex, kTypeNames, IM_ARRAYSIZE(kTypeNames));
 
         ImGui::SameLine();
@@ -405,19 +400,19 @@ void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
     if (removeIndex >= 0)
         NewCustomParams.erase(NewCustomParams.begin() + removeIndex);
 
-    if (ImGui::Button("+ Add an Input", ImVec2(PopupFieldWidth, 0.0f)))
+    if (ImGui::Button("+ Add an Input", ImVec2(kPopupFieldWidthWide, 0.0f)))
         NewCustomParams.push_back(CustomParamEdit{});
 
     if (!NewCustomError.empty()) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + kPopupFieldWidthWide);
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", NewCustomError.c_str());
         ImGui::PopTextWrapPos();
     }
 
     ImGui::Spacing();
-    bool createClicked = ImGui::Button("Create Block", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool createClicked = ImGui::Button("Create Block", ImVec2(PopupButtonWidth(kPopupFieldWidthWide), 0.0f));
     ImGui::SameLine();
-    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupButtonWidth(kPopupFieldWidthWide), 0.0f));
 
     if (createClicked) {
         std::string name(NewCustomNameBuf);
@@ -436,14 +431,14 @@ void Canvas::DrawCreateCustomBlockPopup(BlockRegistry &registry)
                 spec.Params.push_back({ pname, kTypeValues[p.TypeIndex] });
             }
 
-            Error err = RegisterCustomBlock(registry, spec);
+            Error err = RegisterCustomBlock(*Registry, spec);
 
             if (err == Error::Ok) {
                 const BlockDefinition *hatDef =
-                    FindDefinitionByOpCode(registry, CustomHatOpCode(name));
+                    FindDefinitionByOpCode(*Registry, CustomHatOpCode(name));
 
                 if (hatDef) {
-                    ImVec2 spawnScreen = Origin + ImVec2(60.0f, 60.0f);
+                    ImVec2 spawnScreen = Origin + ImVec2(kCustomBlockSpawnOffset, kCustomBlockSpawnOffset);
                     AddBlock(*hatDef, ScreenToWorld(spawnScreen, Origin));
                 }
 
@@ -484,7 +479,7 @@ void Canvas::RequestCustomBlockRename(const std::string &name)
     RenameCustomError.clear();
 }
 
-void Canvas::DrawRenameCustomBlockPopup(BlockRegistry &registry)
+void Canvas::DrawRenameCustomBlockPopup()
 {
     if (CustomRenameRequest.Requested) {
         ImGui::OpenPopup("##canvas_rename_custom_block_popup");
@@ -494,12 +489,10 @@ void Canvas::DrawRenameCustomBlockPopup(BlockRegistry &registry)
     if (!ImGui::BeginPopup("##canvas_rename_custom_block_popup"))
         return;
 
-    constexpr float PopupFieldWidth = 220.0f;
-
     ImGui::TextUnformatted("Rename Block");
     ImGui::Separator();
 
-    ImGui::SetNextItemWidth(PopupFieldWidth);
+    ImGui::SetNextItemWidth(kPopupFieldWidth);
     if (ImGui::IsWindowAppearing()) {
         ImGui::SetKeyboardFocusHere(0);
     }
@@ -511,14 +504,14 @@ void Canvas::DrawRenameCustomBlockPopup(BlockRegistry &registry)
             ImGuiInputTextFlags_EnterReturnsTrue);
 
     if (!RenameCustomError.empty()) {
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + PopupFieldWidth);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + kPopupFieldWidth);
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", RenameCustomError.c_str());
         ImGui::PopTextWrapPos();
     }
 
-    bool renameClicked = ImGui::Button("Rename", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool renameClicked = ImGui::Button("Rename", ImVec2(PopupButtonWidth(kPopupFieldWidth), 0.0f));
     ImGui::SameLine();
-    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupFieldWidth * 0.5f - 4.0f, 0.0f));
+    bool cancelClicked = ImGui::Button("Cancel", ImVec2(PopupButtonWidth(kPopupFieldWidth), 0.0f));
 
     if (renameClicked || enterPressed) {
         std::string newName(RenameCustomNameBuf);

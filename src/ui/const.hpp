@@ -23,3 +23,18 @@ constexpr float kMinZoom = 0.25f;
 constexpr float kMaxZoom = 2.5f;
 
 constexpr float kCommentResizeGrip = 14.0f;
+
+constexpr float kPopupFieldWidth = 220.0f;
+constexpr float kPopupFieldWidthWide = 280.0f;
+
+constexpr float PopupButtonWidth(float fieldWidth)
+{
+    return fieldWidth * 0.5f - 4.0f;
+}
+
+constexpr ImU32 kCommentBgColor = IM_COL32(255, 243, 140, 255);
+constexpr ImU32 kCommentTitleBgColor = IM_COL32(255, 220, 80, 255);
+constexpr ImU32 kCommentBorderColor = IM_COL32(180, 170, 70, 255);
+constexpr ImU32 kCommentTextColor = IM_COL32(60, 50, 10, 255);
+
+constexpr float kCustomBlockSpawnOffset = 60.0f;

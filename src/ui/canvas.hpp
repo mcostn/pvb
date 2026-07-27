@@ -116,7 +116,7 @@ public:
     std::string NewVarError;
 
     void RequestVariableCreation(VisualBlock *targetBlock, const std::string &targetKey, Value requiredType);
-    void DrawCreateVariablePopup(BlockRegistry &registry);
+    void DrawCreateVariablePopup();
     void DeleteVariable(const std::string &name);
 
     struct PendingVariableRename
@@ -129,7 +129,7 @@ public:
     std::string RenameVarError;
 
     void RequestVariableRename(const std::string &name);
-    void DrawRenameVariablePopup(BlockRegistry &registry);
+    void DrawRenameVariablePopup();
     Error RenameVariable(const std::string &oldName, const std::string &newName);
 
     struct CustomParamEdit
@@ -145,7 +145,7 @@ public:
     std::string NewCustomError;
 
     void RequestCustomBlockCreation();
-    void DrawCreateCustomBlockPopup(BlockRegistry &registry);
+    void DrawCreateCustomBlockPopup();
     void DeleteCustomBlock(const std::string &name);
 
     struct PendingCustomBlockRename
@@ -158,7 +158,7 @@ public:
     std::string RenameCustomError;
 
     void RequestCustomBlockRename(const std::string &name);
-    void DrawRenameCustomBlockPopup(BlockRegistry &registry);
+    void DrawRenameCustomBlockPopup();
     Error RenameCustomBlock(const std::string &oldName, const std::string &newName);
 };
 
