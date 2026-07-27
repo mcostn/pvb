@@ -31,9 +31,13 @@ bool Toolchain::IsPython3(const std::string &versionOutput)
     return false;
 }
 
-std::optional<ToolInfo> Toolchain::TryPython(const std::string &command)
+std::optional<ToolInfo> Toolchain::TryPython(const std::string &command, const std::string &extraArgs)
 {
-    CommandResult result = RunCommand(command + " --version 2>&1");
+    std::string invocation = QuotePath(command);
+    if (!extraArgs.empty())
+        invocation += " " + extraArgs;
+
+    CommandResult result = RunCommand(invocation + " --version 2>&1");
     if (result.ExitCode != 0 || result.Output.empty())
         return std::nullopt;
 
@@ -47,6 +51,7 @@ std::optional<ToolInfo> Toolchain::TryPython(const std::string &command)
     return ToolInfo{
         .Kind = ToolKind::Python,
         .Command = command,
+        .ExtraArgs = extraArgs,
         .Version = version,
     };
 }
@@ -78,12 +83,12 @@ std::optional<ToolInfo> Toolchain::TryCppCompiler(
     };
 }
 
-std::vector<std::string> Toolchain::PythonCandidates()
+std::vector<std::pair<std::string, std::string>> Toolchain::PythonCandidates()
 {
 #ifdef _WIN32
-    return { "py -3", "python3", "python" };
+    return { { "py", "-3" }, { "python3", "" }, { "python", "" } };
 #else
-    return { "python3", "python" };
+    return { { "python3", "" }, { "python", "" } };
 #endif
 }
 
@@ -127,19 +132,16 @@ std::vector<std::filesystem::path> WellKnownCompilerBinDirs()
     const std::string programFiles = GetEnvVar("ProgramFiles");
     const std::string programFilesX86 = GetEnvVar("ProgramFiles(x86)");
 
-    // Code::Blocks' bundled MinGW
     if (!programFiles.empty())
         addIfExists(fs::path(programFiles) / "CodeBlocks" / "MinGW" / "bin");
     if (!programFilesX86.empty())
         addIfExists(fs::path(programFilesX86) / "CodeBlocks" / "MinGW" / "bin");
 
-    // Dev-C++ (bundles TDM-GCC)
     if (!programFilesX86.empty())
         addIfExists(fs::path(programFilesX86) / "Dev-Cpp" / "MinGW64" / "bin");
     if (!programFiles.empty())
         addIfExists(fs::path(programFiles) / "Dev-Cpp" / "MinGW64" / "bin");
 
-    // Standalone MinGW-w64 installers
     addIfExists(fs::path("C:\\mingw64\\bin"));
     addIfExists(fs::path("C:\\MinGW\\bin"));
 
@@ -161,12 +163,10 @@ std::vector<std::filesystem::path> WellKnownCompilerBinDirs()
         }
     }
 
-    // MSYS2
     addIfExists(fs::path("C:\\msys64\\mingw64\\bin"));
     addIfExists(fs::path("C:\\msys64\\ucrt64\\bin"));
     addIfExists(fs::path("C:\\msys64\\clang64\\bin"));
 
-    // LLVM's own installer (distinct from the clang bundled with Visual Studio)
     if (!programFiles.empty())
         addIfExists(fs::path(programFiles) / "LLVM" / "bin");
 
@@ -229,8 +229,8 @@ std::optional<std::string> FindMsvcClPath()
 
 std::optional<ToolInfo> Toolchain::FindPython()
 {
-    for (const std::string &candidate : PythonCandidates()) {
-        if (auto tool = TryPython(candidate))
+    for (const auto &[command, extraArgs] : PythonCandidates()) {
+        if (auto tool = TryPython(command, extraArgs))
             return tool;
     }
 
