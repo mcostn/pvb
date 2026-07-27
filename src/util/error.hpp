@@ -39,6 +39,8 @@ enum class [[nodiscard]] Error
 
     CustomBlockAlreadyExists,
     CustomBlockNotFound,
+    CustomBlockInvalidName,
+    CustomBlockInvalidParamName,
 
     BuildToolNotFound,
     BuildWriteFailed,
@@ -83,6 +85,8 @@ inline const char *to_string(Error err)
 
         case Error::CustomBlockAlreadyExists: return "Custom block already exists";
         case Error::CustomBlockNotFound: return "Block not found";
+        case Error::CustomBlockInvalidName: return "Custom block invalid name";
+        case Error::CustomBlockInvalidParamName: return "Custom block parameter invalid name";
 
         case Error::BuildToolNotFound: return "Required build tool not found";
         case Error::BuildWriteFailed: return "Failed to write build artifacts";

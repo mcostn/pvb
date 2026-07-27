@@ -6,6 +6,7 @@
 #include "block/converter.hpp"
 #include "block/instance.hpp"
 #include "codegen/frontend.hpp"
+#include "util/macro.hpp"
 
 static const char *kCallPrefix  = "custom:";
 static const char *kHatPrefix   = "customdef:";
@@ -93,14 +94,28 @@ static BlockConverter::ExprBuilder MakeCustomParamExprBuilder(std::string paramN
 
 Error RegisterCustomBlock(BlockRegistry &registry, const CustomBlockSpec &spec)
 {
-    if (spec.Name.empty())
-        return Error::Failed;
+    FAIL_COND_V_MSG(
+            !registry.IsValidIdentifier(spec.Name),
+            Error::CustomBlockInvalidName,
+            "Block name '{}' is invalid",
+            spec.Name);
+
+    for (const CustomBlockParam &p : spec.Params) {
+        FAIL_COND_V_MSG(
+                !registry.IsValidIdentifier(p.Name),
+                Error::CustomBlockInvalidParamName,
+                "Block input name '{}' is invalid",
+                p.Name);
+    }
 
     const std::string callOp = CustomCallOpCode(spec.Name);
     const std::string hatOp  = CustomHatOpCode(spec.Name);
 
-    if (FindDefinitionByOpCode(registry, callOp) || FindDefinitionByOpCode(registry, hatOp))
-        return Error::CustomBlockAlreadyExists;
+    FAIL_COND_V_MSG(
+            FindDefinitionByOpCode(registry, callOp) || FindDefinitionByOpCode(registry, hatOp),
+            Error::CustomBlockAlreadyExists,
+            "A block named '{}' already exists",
+            spec.Name);
 
     BlockDefinition call;
     call.OpCode = callOp;
@@ -133,9 +148,6 @@ Error RegisterCustomBlock(BlockRegistry &registry, const CustomBlockSpec &spec)
     registry.Definitions.push_back(std::move(hat));
 
     for (const CustomBlockParam &p : spec.Params) {
-        if (p.Name.empty())
-            continue;
-
         BlockDefinition param;
         param.OpCode = CustomParamOpCode(spec.Name, p.Name);
         param.Category = BlockCategory::Custom;
@@ -181,19 +193,28 @@ Error UnregisterCustomBlock(BlockRegistry &registry, const std::string &name)
 
 Error RenameCustomBlock(BlockRegistry &registry, const std::string &oldName, const std::string &newName)
 {
-    if (newName.empty())
-        return Error::Failed;
+    FAIL_COND_V_MSG(
+            !registry.IsValidIdentifier(newName),
+            Error::CustomBlockInvalidName,
+            "Block name '{}' is invalid",
+            newName);
 
-    if (!IsCustomBlockRegistered(registry, oldName))
-        return Error::CustomBlockNotFound;
+    FAIL_COND_V_MSG(
+            !IsCustomBlockRegistered(registry, oldName),
+            Error::CustomBlockNotFound,
+            "Tried to rename block '{}', which doesn't exist",
+            oldName);
 
     if (newName == oldName)
         return Error::Ok;
 
-    if (IsCustomBlockRegistered(registry, newName) ||
-        FindDefinitionByOpCode(registry, CustomCallOpCode(newName)) ||
-        FindDefinitionByOpCode(registry, CustomHatOpCode(newName)))
-        return Error::CustomBlockAlreadyExists;
+    FAIL_COND_V_MSG(
+            IsCustomBlockRegistered(registry, newName) ||
+                FindDefinitionByOpCode(registry, CustomCallOpCode(newName)) ||
+                FindDefinitionByOpCode(registry, CustomHatOpCode(newName)),
+            Error::CustomBlockAlreadyExists,
+            "A block named '{}' already exists",
+            newName);
 
     const std::string oldCallOp = CustomCallOpCode(oldName);
     const std::string oldHatOp = CustomHatOpCode(oldName);

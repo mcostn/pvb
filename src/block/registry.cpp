@@ -62,7 +62,7 @@ Error BlockRegistry::RegisterBlock(BlockDefinition def)
     return Error::Ok;
 }
 
-static bool IsValidIdentifier(const std::string &name) {
+bool BlockRegistry::IsValidIdentifier(const std::string &name) {
     static const std::unordered_set<std::string> kReserved = {
         // Common
         "if",
@@ -303,9 +303,10 @@ Error BlockRegistry::RemoveVariable(const std::string &name)
 Error BlockRegistry::RenameVariable(const std::string &oldName, const std::string &newName)
 {
     FAIL_COND_V_MSG(
-            newName.empty(),
-            Error::BlockInvalidDefinition,
-            "Variable name cannot be empty");
+            !IsValidIdentifier(newName),
+            Error::VariableInvalidName,
+            "Variable name '{}' is invalid",
+            newName);
 
     auto it = std::find_if(
             Variables.begin(),

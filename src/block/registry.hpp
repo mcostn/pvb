@@ -19,6 +19,8 @@ class BlockRegistry
     public:
         Error RegisterBlock(BlockDefinition def);
 
+        static bool IsValidIdentifier(const std::string &name);
+
         Error AddVariable(const std::string &name, Value type);
         Error RemoveVariable(const std::string &name);
         Error RenameVariable(const std::string &oldName, const std::string &newName);

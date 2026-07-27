@@ -210,10 +210,8 @@ void Canvas::DrawCreateVariablePopup()
             NewVarNameBuf[0] = '\0';
             VarCreateRequest = PendingVariableCreate{};
             ImGui::CloseCurrentPopup();
-        } else if (err == Error::VariableAlreadyExists) {
-            NewVarError = "A variable named '" + name + "' already exists";
         } else {
-            NewVarError = "Couldn't create variable '" + name + "'";
+            NewVarError = ErrorDetail::Message;
         }
     }
 
@@ -277,10 +275,8 @@ void Canvas::DrawRenameVariablePopup()
             RenameVarError.clear();
             VarRenameRequest = PendingVariableRename{};
             ImGui::CloseCurrentPopup();
-        } else if (err == Error::VariableAlreadyExists) {
-            RenameVarError = "A variable named '" + newName + "' already exists";
         } else {
-            RenameVarError = "Couldn't rename variable to '" + newName + "'";
+            RenameVarError = ErrorDetail::Message;
         }
     }
 
@@ -445,10 +441,8 @@ void Canvas::DrawCreateCustomBlockPopup()
                 NewCustomError.clear();
                 NewCustomParams.clear();
                 ImGui::CloseCurrentPopup();
-            } else if (err == Error::CustomBlockAlreadyExists) {
-                NewCustomError = "A block named '" + name + "' already exists";
             } else {
-                NewCustomError = "Couldn't create block '" + name + "'";
+                NewCustomError = ErrorDetail::Message;
             }
         }
     }
@@ -521,10 +515,8 @@ void Canvas::DrawRenameCustomBlockPopup()
             RenameCustomError.clear();
             CustomRenameRequest = PendingCustomBlockRename{};
             ImGui::CloseCurrentPopup();
-        } else if (err == Error::CustomBlockAlreadyExists) {
-            RenameCustomError = "A block named '" + newName + "' already exists";
         } else {
-            RenameCustomError = "Couldn't rename block to '" + newName + "'";
+            RenameCustomError = ErrorDetail::Message;
         }
     }
 
