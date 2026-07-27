@@ -85,7 +85,7 @@ BuildResult ProjectRunner::CompileCpp(
         case CompilerKind::Gcc:
         case CompilerKind::Clang:
             command << QuotePath(compiler.Command)
-                << " -std=c++20 -o " << QuotePath(result.ExecutablePath)
+                << " -std=c++11 -o " << QuotePath(result.ExecutablePath)
                 << " " << QuotePath(sourcePath.string());
             break;
     }
