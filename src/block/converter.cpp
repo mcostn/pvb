@@ -54,6 +54,8 @@ std::unique_ptr<BlockStmt> BlockConverter::ConvertBody(const BlockInstance &bloc
 
 std::unique_ptr<Expr> BlockConverter::ResolveArg(const BlockArg &arg, Value expectedType)
 {
+    DISCARD(expectedType); // unused (old API)
+
     if (auto *lit = std::get_if<LiteralValue>(&arg))
         return std::visit([&](auto&& v) -> std::unique_ptr<Expr> {
             using T = std::decay_t<decltype(v)>;

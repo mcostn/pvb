@@ -78,6 +78,7 @@ std::optional<ToolInfo> Toolchain::TryCppCompiler(
     return ToolInfo{
         .Kind = ToolKind::CppCompiler,
         .Command = command,
+        .ExtraArgs = "",
         .Version = version,
         .Compiler = kind,
     };

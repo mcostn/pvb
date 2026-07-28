@@ -466,6 +466,9 @@ ImVec2 Canvas::ScreenToWorld(ImVec2 screen, ImVec2 origin) const
 
 void Canvas::HandleBlockDrag(ImVec2 origin, bool hovered)
 {
+    DISCARD(origin); // unused (old API)
+    DISCARD(hovered); // unused (old API)
+
     ImGuiIO& io = ImGui::GetIO();
 
     if (DraggingId) {

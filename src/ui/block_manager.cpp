@@ -641,6 +641,8 @@ void BlockManager::AttachAfter(VisualBlock *parent, VisualBlock *child)
 
 SnapResult BlockManager::FindSnapTarget(VisualBlock *dragging, float zoom)
 {
+    DISCARD(zoom);
+
     SnapResult result;
     float bestDist = kSnapDistance;
 
