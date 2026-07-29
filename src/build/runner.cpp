@@ -115,6 +115,41 @@ BuildResult ProjectRunner::CompileCpp(
     return result;
 }
 
+#ifdef _WIN32
+#include <algorithm>
+#include <cctype>
+
+static std::string ToWslPath(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+
+    if (path.size() >= 2 && path[1] == ':') {
+        char drive = static_cast<char>(std::tolower(path[0]));
+        return "/mnt/" + std::string(1, drive) + path.substr(2);
+    }
+
+    return path;
+}
+
+static std::string WslShellQuote(const std::string &s)
+{
+    std::string out = "'";
+    for (char c : s) {
+        if (c == '\'')
+            out += "'\"'\"'";
+        else
+            out += c;
+    }
+    out += "'";
+    return out;
+}
+
+static std::string BuildWslCommand(const std::string &bashCommand)
+{
+    return "wsl.exe -e bash -lc \"" + bashCommand + "\"";
+}
+#endif
+
 BuildResult ProjectRunner::CompileAsm(
     const std::string &source,
     const ToolInfo &assembler,
@@ -129,28 +164,82 @@ BuildResult ProjectRunner::CompileAsm(
     const std::string baseName = SanitizeProjectName(projectName);
     const fs::path sourcePath = fs::path(result.BuildDirectory) / (baseName + ".asm");
 
-    // NASM's own object format flag differs per platform; the CPU/text content
-    // emitted by AsmEmitter is the same, only the container format changes.
 #ifdef _WIN32
-    const char *objFormat = "win64";
-    const char *linkerExtraFlags = "";
-    const fs::path objPath = fs::path(result.BuildDirectory) / (baseName + ".obj");
-    result.ExecutablePath = (fs::path(result.BuildDirectory) / (baseName + ".exe")).string();
-#elif defined(__APPLE__)
+    if (assembler.ViaWsl) {
+        const fs::path objPath = fs::path(result.BuildDirectory) / (baseName + ".o");
+        result.ExecutablePath = (fs::path(result.BuildDirectory) / baseName).string();
+
+        {
+            std::ofstream file(sourcePath);
+            if (!file) {
+                result.Status = Error::BuildWriteFailed;
+                result.Output = "Failed to write source file: " + sourcePath.string();
+                return result;
+            }
+            file << source;
+        }
+
+        const std::string wslDir = WslShellQuote(ToWslPath(result.BuildDirectory));
+
+        std::ostringstream assembleCommand;
+        assembleCommand << "cd " << wslDir
+            << " && " << assembler.Command
+            << " -f elf64 -o " << (baseName + ".o")
+            << " " << (baseName + ".asm");
+
+        std::string assembleFull = BuildWslCommand(assembleCommand.str());
+        CommandResult assemble = RunCommand(assembleFull + " 2>&1");
+        result.CompileCommand = assembleFull;
+        result.ExitCode = assemble.ExitCode;
+        result.Output = assemble.Output;
+
+        if (assemble.ExitCode != 0) {
+            result.Status = Error::BuildCompileFailed;
+            return result;
+        }
+
+        std::ostringstream linkCommand;
+        linkCommand << "cd " << wslDir
+            << " && " << linker.Command
+            << " -no-pie -o " << baseName
+            << " " << (baseName + ".o");
+
+        std::string linkFull = BuildWslCommand(linkCommand.str());
+        CommandResult link = RunCommand(linkFull + " 2>&1");
+        result.ExitCode = link.ExitCode;
+        if (!result.Output.empty())
+            result.Output += "\n";
+        result.Output += link.Output;
+
+        if (link.ExitCode != 0) {
+            result.Status = Error::BuildCompileFailed;
+            return result;
+        }
+
+        if (!fs::exists(result.ExecutablePath)) {
+            result.Status = Error::BuildCompileFailed;
+            if (!result.Output.empty())
+                result.Output += "\n";
+            result.Output += "Executable was not produced: " + result.ExecutablePath;
+            return result;
+        }
+
+        if (!result.Output.empty())
+            result.Output += "\n";
+        result.Output += "Assembled and linked successfully (via WSL).";
+        return result;
+    }
+#endif
+
+#if defined(__APPLE__)
     const char *objFormat = "macho64";
     const char *linkerExtraFlags = "";
-    const fs::path objPath = fs::path(result.BuildDirectory) / (baseName + ".o");
-    result.ExecutablePath = (fs::path(result.BuildDirectory) / baseName).string();
 #else
     const char *objFormat = "elf64";
-    // Distros ship GCC/Clang configured to link Position-Independent Executables
-    // by default, but NASM emits PC32 (not PLT32) relocations for calls to
-    // externs like `printf`, which `ld` refuses to resolve against a PIE.
-    // Linking non-PIE sidesteps that mismatch without touching the codegen.
     const char *linkerExtraFlags = "-no-pie";
+#endif
     const fs::path objPath = fs::path(result.BuildDirectory) / (baseName + ".o");
     result.ExecutablePath = (fs::path(result.BuildDirectory) / baseName).string();
-#endif
 
     {
         std::ofstream file(sourcePath);
@@ -162,7 +251,6 @@ BuildResult ProjectRunner::CompileAsm(
         file << source;
     }
 
-    // ---- Assemble --------------------------------------------------------
     std::ostringstream assembleCommand;
     assembleCommand << QuotePath(assembler.Command)
         << " -f " << objFormat
@@ -187,12 +275,6 @@ BuildResult ProjectRunner::CompileAsm(
         return result;
     }
 
-    // ---- Link --------------------------------------------------------------
-    // The emitted assembly defines `main` and calls libc directly (printf,
-    // scanf, malloc, ...) rather than a raw `_start`, so linking it is no
-    // different from linking any other object file: handing it to a C/C++
-    // compiler driver gets us the platform's CRT startup and libc for free,
-    // without needing to hunt down `ld`/`link.exe` and their flags ourselves.
     std::ostringstream linkCommand;
     switch (linker.Compiler) {
         case CompilerKind::Msvc:
@@ -266,13 +348,24 @@ BuildResult ProjectRunner::LaunchCompiledProgram(BuildResult compile)
     const std::optional<ToolInfo> &linkedWith = compile.LinkerTool ? compile.LinkerTool : compile.Tool;
 
 #ifdef _WIN32
-    if (linkedWith && linkedWith->Compiler != CompilerKind::Msvc) {
-        fs::path compilerDir = fs::path(linkedWith->Command).parent_path();
-        if (!compilerDir.empty())
-            command << "set \"PATH=" << compilerDir.string() << ";%PATH%\" && ";
-    }
+    if (linkedWith && linkedWith->ViaWsl) {
+        const std::string baseName = fs::path(compile.ExecutablePath).filename().string();
+        const std::string wslDir = WslShellQuote(ToWslPath(compile.BuildDirectory));
 
-    command << QuotePath(fs::path(compile.ExecutablePath).filename().string());
+        std::ostringstream runCmd;
+        runCmd << "cd " << wslDir
+            << " && chmod +x " << baseName
+            << " && ./" << baseName;
+        command << BuildWslCommand(runCmd.str());
+    } else {
+        if (linkedWith && linkedWith->Compiler != CompilerKind::Msvc) {
+            fs::path compilerDir = fs::path(linkedWith->Command).parent_path();
+            if (!compilerDir.empty())
+                command << "set \"PATH=" << compilerDir.string() << ";%PATH%\" && ";
+        }
+
+        command << QuotePath(fs::path(compile.ExecutablePath).filename().string());
+    }
 #else
     command << QuotePath(compile.ExecutablePath);
 #endif
@@ -292,6 +385,44 @@ BuildResult ProjectRunner::LaunchCompiledProgram(BuildResult compile)
     return launched;
 }
 
+static std::optional<ToolInfo> FindAsmLinker(const ToolInfo &assembler)
+{
+#ifdef _WIN32
+    if (assembler.ViaWsl)
+        return Toolchain::FindCppCompilerInWsl();
+#endif
+    (void)assembler;
+    return Toolchain::FindCppCompiler();
+}
+
+static std::string AsmNotFoundMessage()
+{
+#ifdef _WIN32
+    if (!Toolchain::HasWsl()) {
+        return "No NASM assembler found. Building .asm on Windows requires WSL -- "
+               "install it (`wsl --install`), then install nasm inside your Linux "
+               "distro (e.g. `sudo apt install nasm`).";
+    }
+    return "No NASM assembler found inside WSL. Install it in your WSL distro "
+           "(e.g. `sudo apt install nasm`).";
+#else
+    return "No NASM assembler found. Install NASM and ensure it is on PATH.";
+#endif
+}
+
+static std::string AsmLinkerNotFoundMessage(const ToolInfo &assembler)
+{
+#ifdef _WIN32
+    if (assembler.ViaWsl) {
+        return "No C compiler found inside WSL to link the assembled program. "
+               "Install one in your WSL distro (e.g. `sudo apt install build-essential`).";
+    }
+#else
+    (void)assembler;
+#endif
+    return "No C/C++ compiler found to link the assembled program. Install g++, clang++, or MSVC and ensure it is on PATH.";
+}
+
 BuildResult ProjectRunner::RunInTerminal(
     const std::string &source,
     CodeLanguage language,
@@ -305,17 +436,17 @@ BuildResult ProjectRunner::RunInTerminal(
         if (language == CodeLanguage::Python)
             result.Output = "No Python 3 interpreter found. Install Python 3 and ensure it is on PATH.";
         else if (language == CodeLanguage::Asm)
-            result.Output = "No NASM assembler found. Install NASM and ensure it is on PATH.";
+            result.Output = AsmNotFoundMessage();
         else
             result.Output = "No C++ compiler found. Install g++, clang++, or MSVC and ensure it is on PATH.";
         return result;
     }
 
     if (language == CodeLanguage::Asm) {
-        std::optional<ToolInfo> linker = Toolchain::FindCppCompiler();
+        std::optional<ToolInfo> linker = FindAsmLinker(*tool);
         if (!linker) {
             result.Status = Error::BuildToolNotFound;
-            result.Output = "No C/C++ compiler found to link the assembled program. Install g++, clang++, or MSVC and ensure it is on PATH.";
+            result.Output = AsmLinkerNotFoundMessage(*tool);
             return result;
         }
 
@@ -371,18 +502,18 @@ BuildResult ProjectRunner::CompileAndRunInTerminal(
         BuildResult result;
         result.Status = Error::BuildToolNotFound;
         if (language == CodeLanguage::Asm)
-            result.Output = "No NASM assembler found. Install NASM and ensure it is on PATH.";
+            result.Output = AsmNotFoundMessage();
         else
             result.Output = "No C++ compiler found. Install g++, clang++, or MSVC and ensure it is on PATH.";
         return result;
     }
 
     if (language == CodeLanguage::Asm) {
-        std::optional<ToolInfo> linker = Toolchain::FindCppCompiler();
+        std::optional<ToolInfo> linker = FindAsmLinker(*tool);
         if (!linker) {
             BuildResult result;
             result.Status = Error::BuildToolNotFound;
-            result.Output = "No C/C++ compiler found to link the assembled program. Install g++, clang++, or MSVC and ensure it is on PATH.";
+            result.Output = AsmLinkerNotFoundMessage(*tool);
             return result;
         }
 

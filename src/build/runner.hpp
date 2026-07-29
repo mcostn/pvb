@@ -11,8 +11,8 @@ struct BuildResult
     Error Status = Error::Ok;
     std::string Output;
     int ExitCode = 0;
-    std::optional<ToolInfo> Tool;       // primary tool (compiler/interpreter/assembler)
-    std::optional<ToolInfo> LinkerTool; // set alongside Tool when a separate link step ran (e.g. asm)
+    std::optional<ToolInfo> Tool;  // primary tool (compiler/interpreter/assembler)
+    std::optional<ToolInfo> LinkerTool; // set alongside Tool when a separate link step ran
     std::string ExecutablePath;
     std::string BuildDirectory;
     std::string CompileCommand;

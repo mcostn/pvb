@@ -255,36 +255,6 @@ std::optional<std::string> FindMsvcClPath()
     return clPath.string();
 }
 
-std::vector<fs::path> WellKnownNasmDirs()
-{
-    namespace fs = std::filesystem;
-
-    std::vector<fs::path> dirs;
-    auto addIfExists = [&](const fs::path &dir) {
-        std::error_code ec;
-        if (fs::is_directory(dir, ec))
-            dirs.push_back(dir);
-    };
-
-    const std::string programFiles = GetEnvVar("ProgramFiles");
-    const std::string programFilesX86 = GetEnvVar("ProgramFiles(x86)");
-    const std::string localAppData = GetEnvVar("LocalAppData");
-
-    // The official NASM installer defaults to "C:\Program Files\NASM" but
-    // also offers a per-user install under %LocalAppData%\bin\NASM.
-    if (!programFiles.empty())
-        addIfExists(fs::path(programFiles) / "NASM");
-    if (!programFilesX86.empty())
-        addIfExists(fs::path(programFilesX86) / "NASM");
-    if (!localAppData.empty())
-        addIfExists(fs::path(localAppData) / "bin" / "NASM");
-
-    // Common choice for people who unzip it manually or install via scoop/chocolatey.
-    addIfExists(fs::path("C:\\NASM"));
-
-    return dirs;
-}
-
 } // namespace
 
 #endif // _WIN32
@@ -335,22 +305,84 @@ std::optional<ToolInfo> Toolchain::FindCppCompiler()
 
 std::optional<ToolInfo> Toolchain::FindNasm()
 {
+#ifdef _WIN32
+    return FindNasmInWsl();
+#else
     for (const auto &command : NasmCandidates()) {
         if (auto tool = TryNasm(command))
             return tool;
     }
 
+    return std::nullopt;
+#endif
+}
+
+bool Toolchain::HasWsl()
+{
 #ifdef _WIN32
-    for (const std::filesystem::path &dir : WellKnownNasmDirs()) {
-        std::error_code ec;
-        std::filesystem::path exePath = dir / "nasm.exe";
-        if (!std::filesystem::exists(exePath, ec))
+    static const bool available = (RunCommand("wsl.exe -e true 2>&1").ExitCode == 0);
+    return available;
+#else
+    return false;
+#endif
+}
+
+std::optional<ToolInfo> Toolchain::FindNasmInWsl()
+{
+#ifdef _WIN32
+    if (!HasWsl())
+        return std::nullopt;
+
+    CommandResult result = RunCommand("wsl.exe -e bash -lc \"command -v nasm\" 2>&1");
+    if (result.ExitCode != 0 || result.Output.empty())
+        return std::nullopt;
+
+    std::string path = result.Output;
+    while (!path.empty() && (path.back() == '\n' || path.back() == '\r'))
+        path.pop_back();
+
+    return ToolInfo{
+        .Kind = ToolKind::Nasm,
+        .Command = "nasm",
+        .ExtraArgs = "",
+        .Version = "nasm (WSL: " + path + ")",
+        .Compiler = CompilerKind::Gcc,
+        .ViaWsl = true,
+    };
+#else
+    return std::nullopt;
+#endif
+}
+
+std::optional<ToolInfo> Toolchain::FindCppCompilerInWsl()
+{
+#ifdef _WIN32
+    if (!HasWsl())
+        return std::nullopt;
+
+    static const char *const kCandidates[] = { "gcc", "cc", "clang" };
+    for (const char *candidate : kCandidates) {
+        CommandResult result = RunCommand(
+            std::string("wsl.exe -e bash -lc \"command -v ") + candidate + "\" 2>&1");
+        if (result.ExitCode != 0 || result.Output.empty())
             continue;
 
-        if (auto tool = TryNasm(exePath.string()))
-            return tool;
+        std::string path = result.Output;
+        while (!path.empty() && (path.back() == '\n' || path.back() == '\r'))
+            path.pop_back();
+
+        return ToolInfo{
+            .Kind = ToolKind::CppCompiler,
+            .Command = candidate,
+            .ExtraArgs = "",
+            .Version = std::string(candidate) + " (WSL: " + path + ")",
+            .Compiler = CompilerKind::Gcc,
+            .ViaWsl = true,
+        };
     }
-#endif
 
     return std::nullopt;
+#else
+    return std::nullopt;
+#endif
 }

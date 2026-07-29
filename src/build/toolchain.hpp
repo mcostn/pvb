@@ -25,6 +25,7 @@ struct ToolInfo
     std::string ExtraArgs;
     std::string Version;
     CompilerKind Compiler = CompilerKind::Gcc;
+    bool ViaWsl = false; // Windows only: this tool is invoked inside WSL, not natively
 };
 
 class Toolchain
@@ -33,6 +34,10 @@ public:
     [[nodiscard]] static std::optional<ToolInfo> FindPython();
     [[nodiscard]] static std::optional<ToolInfo> FindCppCompiler();
     [[nodiscard]] static std::optional<ToolInfo> FindNasm();
+
+    [[nodiscard]] static bool HasWsl();
+    [[nodiscard]] static std::optional<ToolInfo> FindNasmInWsl();
+    [[nodiscard]] static std::optional<ToolInfo> FindCppCompilerInWsl();
 
 private:
     [[nodiscard]] static std::optional<ToolInfo> TryPython(const std::string &command, const std::string &extraArgs);
