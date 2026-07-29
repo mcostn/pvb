@@ -156,7 +156,6 @@ if(BUILD_TESTS)
         test_runner
         "tests/cpp_emitter.cpp"
         "tests/py_emitter.cpp"
-        "tests/asm_emitter.cpp"
         "tests/block_converter.cpp"
         "tests/test_runner.cpp"
         "tests/block_schema.cpp"

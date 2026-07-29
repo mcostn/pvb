@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
+#include <iomanip>
 #include <utility>
 
 #include "codegen/asm_backend.hpp"
@@ -503,6 +505,8 @@ Error AsmEmitter::Visit(const Program &program)
         rodataBody << "\", 0\n";
     }
 
+    rodataBody << RoData.str();
+
     const std::string rodataText = rodataBody.str();
     if (!rodataText.empty())
         Out() << "section .rodata\n" << rodataText << "\n";
@@ -568,6 +572,9 @@ Error AsmEmitter::Visit(const FunctionStmt &fn)
     PushOut(&FuncsText);
     int savedPending = PendingSpillBytes;
     PendingSpillBytes = 0;
+
+    if (sig.ReturnKind == AsmKind::Float)
+        Out() << "    movq rax, xmm0\n";
 
     Out() << sig.Label << ":\n"
              "    push rbp\n"
@@ -864,7 +871,11 @@ Error AsmEmitter::Visit(const LiteralExpr &expr)
             LastExprKind = AsmKind::Str;
         } else if constexpr (std::is_same_v<T, float>) {
             std::string label = "pvb_flt_" + std::to_string(LabelCounter++);
-            RoData << "    " << label << ": dq " << static_cast<double>(value) << "\n";
+            double d = static_cast<double>(value);
+            uint64_t bits;
+            std::memcpy(&bits, &d, sizeof(bits));
+            RoData << "    " << label << ": dq 0x" << std::hex << std::setfill('0')
+            << std::setw(16) << bits << std::dec << std::setfill(' ') << "\n";
             Out() << "    movsd xmm0, [rel " << label << "]\n";
             LastExprKind = AsmKind::Float;
         } else { // int
