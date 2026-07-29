@@ -84,6 +84,28 @@ std::optional<ToolInfo> Toolchain::TryCppCompiler(
     };
 }
 
+std::optional<ToolInfo> Toolchain::TryNasm(const std::string &command)
+{
+    // NASM prints its banner on `-v` and exits 0 on every platform we care about.
+    CommandResult result = RunCommand(QuotePath(command) + " -v 2>&1");
+    if (result.ExitCode != 0 || result.Output.empty())
+        return std::nullopt;
+
+    if (result.Output.find("NASM") == std::string::npos)
+        return std::nullopt;
+
+    std::string version = result.Output;
+    while (!version.empty() && (version.back() == '\n' || version.back() == '\r'))
+        version.pop_back();
+
+    return ToolInfo{
+        .Kind = ToolKind::Nasm,
+        .Command = command,
+        .ExtraArgs = "",
+        .Version = version,
+    };
+}
+
 std::vector<std::pair<std::string, std::string>> Toolchain::PythonCandidates()
 {
 #ifdef _WIN32
@@ -106,6 +128,15 @@ std::vector<std::pair<std::string, CompilerKind>> Toolchain::CppCandidates()
         { "g++", CompilerKind::Gcc },
         { "clang++", CompilerKind::Clang },
     };
+#endif
+}
+
+std::vector<std::string> Toolchain::NasmCandidates()
+{
+#ifdef _WIN32
+    return { "nasm", "nasm.exe" };
+#else
+    return { "nasm" };
 #endif
 }
 
@@ -224,6 +255,36 @@ std::optional<std::string> FindMsvcClPath()
     return clPath.string();
 }
 
+std::vector<fs::path> WellKnownNasmDirs()
+{
+    namespace fs = std::filesystem;
+
+    std::vector<fs::path> dirs;
+    auto addIfExists = [&](const fs::path &dir) {
+        std::error_code ec;
+        if (fs::is_directory(dir, ec))
+            dirs.push_back(dir);
+    };
+
+    const std::string programFiles = GetEnvVar("ProgramFiles");
+    const std::string programFilesX86 = GetEnvVar("ProgramFiles(x86)");
+    const std::string localAppData = GetEnvVar("LocalAppData");
+
+    // The official NASM installer defaults to "C:\Program Files\NASM" but
+    // also offers a per-user install under %LocalAppData%\bin\NASM.
+    if (!programFiles.empty())
+        addIfExists(fs::path(programFiles) / "NASM");
+    if (!programFilesX86.empty())
+        addIfExists(fs::path(programFilesX86) / "NASM");
+    if (!localAppData.empty())
+        addIfExists(fs::path(localAppData) / "bin" / "NASM");
+
+    // Common choice for people who unzip it manually or install via scoop/chocolatey.
+    addIfExists(fs::path("C:\\NASM"));
+
+    return dirs;
+}
+
 } // namespace
 
 #endif // _WIN32
@@ -265,6 +326,28 @@ std::optional<ToolInfo> Toolchain::FindCppCompiler()
 
     if (auto clPath = FindMsvcClPath()) {
         if (auto tool = TryCppCompiler(*clPath, CompilerKind::Msvc))
+            return tool;
+    }
+#endif
+
+    return std::nullopt;
+}
+
+std::optional<ToolInfo> Toolchain::FindNasm()
+{
+    for (const auto &command : NasmCandidates()) {
+        if (auto tool = TryNasm(command))
+            return tool;
+    }
+
+#ifdef _WIN32
+    for (const std::filesystem::path &dir : WellKnownNasmDirs()) {
+        std::error_code ec;
+        std::filesystem::path exePath = dir / "nasm.exe";
+        if (!std::filesystem::exists(exePath, ec))
+            continue;
+
+        if (auto tool = TryNasm(exePath.string()))
             return tool;
     }
 #endif

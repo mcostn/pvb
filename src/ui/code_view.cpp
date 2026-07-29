@@ -181,6 +181,7 @@ std::unique_ptr<Emitter> CodeView::CreateEmitter(CodeLanguage language, std::ost
     switch (language) {
         case CodeLanguage::Cpp:    return std::make_unique<CppEmitter>(stream);
         case CodeLanguage::Python: return std::make_unique<PythonEmitter>(stream);
+        case CodeLanguage::Asm:    return std::make_unique<AsmEmitter>(stream);
     }
 
     return nullptr;
@@ -255,6 +256,7 @@ Error CodeView::Generate(Canvas &canvas, BlockRegistry &registry, CodeLanguage l
     }
 
     switch (language) {
+        case CodeLanguage::Asm:
         case CodeLanguage::Cpp:    SetLanguage(TextEditor::LanguageDefinition::CPlusPlus()); break;
         case CodeLanguage::Python: SetLanguage(TextEditor::LanguageDefinition::Lua());     break;
     }

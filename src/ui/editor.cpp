@@ -202,10 +202,29 @@ void Editor::DrawProjectSettingsPopup()
     ImGui::InputText("Name", &ProjectName);
     ImGui::InputTextMultiline("Description", &ProjectDescription, ImVec2(320.0f, 80.0f));
 
-    static const char *kLanguageNames[] = { "C++", "Python" };
-    int languageIndex = (Language == CodeLanguage::Cpp) ? 0 : 1;
-    if (ImGui::Combo("Language", &languageIndex, kLanguageNames, IM_ARRAYSIZE(kLanguageNames)))
-        Language = (languageIndex == 0) ? CodeLanguage::Cpp : CodeLanguage::Python;
+    static const char *kLanguageNames[] = { "C++", "Python", "Assembly" };
+    int languageIndex = -1;
+    switch (Language) {
+        case CodeLanguage::Cpp:
+            languageIndex = 0;
+            break;
+        case CodeLanguage::Python:
+            languageIndex = 1;
+            break;
+        case CodeLanguage::Asm:
+            languageIndex = 2;
+            break;
+    }
+
+    if (ImGui::Combo("Language", &languageIndex, kLanguageNames, IM_ARRAYSIZE(kLanguageNames))) {
+        if (languageIndex == 0) {
+            Language = CodeLanguage::Cpp;
+        } else if (languageIndex == 1) {
+            Language = CodeLanguage::Python;
+        } else if (languageIndex == 2) {
+            Language = CodeLanguage::Asm;
+        }
+    }
 
     ImGui::Separator();
 

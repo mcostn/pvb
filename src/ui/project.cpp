@@ -909,6 +909,7 @@ static Error CodeLanguageToString(CodeLanguage lang, std::string &out)
     switch (lang) {
         case CodeLanguage::Cpp:    out = "cpp";    return Error::Ok;
         case CodeLanguage::Python: out = "python"; return Error::Ok;
+        case CodeLanguage::Asm:    out = "asm";    return Error::Ok;
     }
 
     GlobalLogger.Error("Cannot save project with unsupported language");
@@ -919,6 +920,7 @@ static Error CodeLanguageFromString(const std::string &str, CodeLanguage &out)
 {
     if (str == "cpp")    { out = CodeLanguage::Cpp;    return Error::Ok; }
     if (str == "python") { out = CodeLanguage::Python; return Error::Ok; }
+    if (str == "asm") { out = CodeLanguage::Asm; return Error::Ok; }
 
     GlobalLogger.Error(
             "Unknown project language '{}'",

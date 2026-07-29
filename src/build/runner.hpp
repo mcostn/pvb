@@ -11,7 +11,8 @@ struct BuildResult
     Error Status = Error::Ok;
     std::string Output;
     int ExitCode = 0;
-    std::optional<ToolInfo> Tool;
+    std::optional<ToolInfo> Tool;       // primary tool (compiler/interpreter/assembler)
+    std::optional<ToolInfo> LinkerTool; // set alongside Tool when a separate link step ran (e.g. asm)
     std::string ExecutablePath;
     std::string BuildDirectory;
     std::string CompileCommand;
@@ -36,6 +37,11 @@ private:
     static BuildResult CompileCpp(
         const std::string &source,
         const ToolInfo &compiler,
+        const std::string &projectName);
+    static BuildResult CompileAsm(
+        const std::string &source,
+        const ToolInfo &assembler,
+        const ToolInfo &linker,
         const std::string &projectName);
     static BuildResult LaunchProgramInTerminal(
         const std::string &command,

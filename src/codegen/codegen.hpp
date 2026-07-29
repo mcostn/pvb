@@ -5,3 +5,4 @@
 
 #include "codegen/cpp_backend.hpp"
 #include "codegen/py_backend.hpp"
+#include "codegen/asm_backend.hpp"

@@ -77,6 +77,7 @@ add_library(
     "src/codegen/backend.cpp"
     "src/codegen/cpp_backend.cpp"
     "src/codegen/py_backend.cpp"
+    "src/codegen/asm_backend.cpp"
     "src/codegen/frontend.cpp"
     "src/build/process.cpp"
     "src/build/toolchain.cpp"
@@ -155,6 +156,7 @@ if(BUILD_TESTS)
         test_runner
         "tests/cpp_emitter.cpp"
         "tests/py_emitter.cpp"
+        "tests/asm_emitter.cpp"
         "tests/block_converter.cpp"
         "tests/test_runner.cpp"
         "tests/block_schema.cpp"

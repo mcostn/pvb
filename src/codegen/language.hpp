@@ -4,4 +4,5 @@ enum class CodeLanguage
 {
     Cpp,
     Python,
+    Asm,
 };

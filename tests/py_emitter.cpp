@@ -3,6 +3,7 @@
 
 #define TEST_PREFIX Py
 #define EMITTER PythonEmitter
+
 // Tests
 CODEGEN_TEST(
     PrintInteger,
