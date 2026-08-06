@@ -7,6 +7,8 @@ void Canvas::DrawComments(ImVec2 origin)
 {
     const ImVec2 kCommentMinSize(120.0f, 80.0f);
 
+    uint32_t pendingDeleteId = 0;
+
     for (CanvasComment &c : Comments) {
         ImVec2 screenPos = WorldToScreen(c.Pos, origin);
 
@@ -34,10 +36,15 @@ void Canvas::DrawComments(ImVec2 origin)
 
         std::string name = "##comment" + std::to_string(c.Id);
 
+        bool open = true;
+
         ImGui::Begin(
                 name.c_str(),
-                nullptr,
+                &open,
                 ImGuiWindowFlags_NoCollapse);
+
+        if (!open)
+            pendingDeleteId = c.Id;
 
         ImFont *font = ImGui::GetFont();
         float fontSize = ImGui::GetFontSize() * Zoom;
@@ -62,4 +69,29 @@ void Canvas::DrawComments(ImVec2 origin)
         ImGui::End();
         ImGui::PopStyleColor(8);
     }
+
+    if (pendingDeleteId != 0)
+        DeleteComment(pendingDeleteId);
+}
+
+void Canvas::DeleteComment(uint32_t id)
+{
+    Comments.erase(
+            std::remove_if(Comments.begin(), Comments.end(),
+                    [id](const CanvasComment &c) { return c.Id == id; }),
+            Comments.end());
+}
+
+CanvasComment *Canvas::HitTestComment(ImVec2 mouse, ImVec2 origin)
+{
+    for (auto it = Comments.rbegin(); it != Comments.rend(); ++it) {
+        ImVec2 screenPos = WorldToScreen(it->Pos, origin);
+        ImVec2 screenSize = it->Size * Zoom;
+
+        if (mouse.x >= screenPos.x && mouse.x <= screenPos.x + screenSize.x &&
+            mouse.y >= screenPos.y && mouse.y <= screenPos.y + screenSize.y)
+            return &(*it);
+    }
+
+    return nullptr;
 }

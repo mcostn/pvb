@@ -8,11 +8,16 @@ void Canvas::HandleContextMenu(ImVec2 origin, bool hovered)
 
         ContextMenuOnBlock = false;
         ContextMenuBlockId = 0;
+        ContextMenuOnComment = false;
+        ContextMenuCommentId = 0;
 
         if (VisualBlock *hit = HitTest(ImGui::GetIO().MousePos, origin)) {
             ContextMenuOnBlock = true;
             ContextMenuBlockId = hit->Id;
             SelectedId = hit->Id;
+        } else if (CanvasComment *hitComment = HitTestComment(ImGui::GetIO().MousePos, origin)) {
+            ContextMenuOnComment = true;
+            ContextMenuCommentId = hitComment->Id;
         }
 
         ImGui::SetNextWindowPos(ImGui::GetIO().MousePos);
@@ -72,6 +77,9 @@ void Canvas::HandleContextMenu(ImVec2 origin, bool hovered)
                 }
 
             }
+        } else if (ContextMenuOnComment) {
+            if (ImGui::MenuItem("Delete Note"))
+                DeleteComment(ContextMenuCommentId);
         } else {
             if (ImGui::MenuItem("Add Comment")) {
                 Comments.emplace_back(

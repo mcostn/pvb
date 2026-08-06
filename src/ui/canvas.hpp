@@ -95,6 +95,8 @@ public:
 
     u32 ContextMenuBlockId = 0;
     bool ContextMenuOnBlock = false;
+    bool ContextMenuOnComment = false;
+    u32 ContextMenuCommentId = 0;
     void HandleContextMenu(ImVec2 origin, bool hovered);
 
     bool ShowDebugWindow = false;
@@ -109,6 +111,8 @@ public:
     u32 NextCommentId = 1;
     std::vector<CanvasComment> Comments;
     void DrawComments(ImVec2 origin);
+    void DeleteComment(uint32_t id);
+    CanvasComment *HitTestComment(ImVec2 mouse, ImVec2 origin);
 
     PendingVariableCreate VarCreateRequest;
     char NewVarNameBuf[64] = "";

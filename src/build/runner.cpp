@@ -202,7 +202,8 @@ BuildResult ProjectRunner::CompileAsm(
         linkCommand << "cd " << wslDir
             << " && " << linker.Command
             << " -no-pie -o " << baseName
-            << " " << (baseName + ".o");
+            << " " << (baseName + ".o")
+            << " -lm";
 
         std::string linkFull = BuildWslCommand(linkCommand.str());
         CommandResult link = RunCommand(linkFull + " 2>&1");
@@ -288,7 +289,8 @@ BuildResult ProjectRunner::CompileAsm(
         case CompilerKind::Clang:
             linkCommand << QuotePath(linker.Command)
                 << " -o " << QuotePath(result.ExecutablePath)
-                << " " << QuotePath(objPath.string());
+                << " " << QuotePath(objPath.string())
+                << " -lm";
             if (*linkerExtraFlags)
                 linkCommand << " " << linkerExtraFlags;
             break;
